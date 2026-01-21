@@ -55,8 +55,6 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute('DROP TABLE IF EXISTS pedidos')
-    cur.execute('DROP TABLE IF EXISTS usuarios')
     
     # Tabla de usuarios
     cur.execute('''
