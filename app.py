@@ -277,7 +277,69 @@ def dashboard():
                          productos_config=PRODUCTOS_CONFIG,
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin)
-
+@app.route('/exportar-excel')
+@login_required
+def exportar_excel():
+    fecha_inicio = request.args.get('fecha_inicio', '')
+    fecha_fin = request.args.get('fecha_fin', '')
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    
+    query = 'SELECT * FROM pedidos'
+    params = []
+    
+    if fecha_inicio and fecha_fin:
+        query += ' WHERE fecha BETWEEN %s AND %s'
+        params = [fecha_inicio, fecha_fin]
+    elif fecha_inicio:
+        query += ' WHERE fecha >= %s'
+        params = [fecha_inicio]
+    elif fecha_fin:
+        query += ' WHERE fecha <= %s'
+        params = [fecha_fin]
+    
+    query += ' ORDER BY fecha DESC'
+    cur.execute(query, params)
+    pedidos = cur.fetchall()
+    cur.close()
+    conn.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    writer.writerow(['Fecha', 'Cliente', 'Producto', 'Cantidad', 'Total Venta', 'Recargo VISA', 'Total', 'Costo', 'Utilidad'])
+    
+    for pedido in pedidos:
+        try:
+            totales = calcular_totales(
+                pedido['producto'],
+                pedido['cantidad'],
+                float(pedido['descuento']) if pedido['descuento'] else 0,
+                pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0
+            )
+            writer.writerow([
+                pedido['fecha'],
+                pedido['cliente'],
+                pedido['producto'],
+                pedido['cantidad'],
+                totales['total_venta'],
+                totales['recargo_visa'],
+                totales['total_con_recargo'],
+                totales['costo_total'],
+                totales['utilidad']
+            ])
+        except:
+            continue
+    
+    output.seek(0)
+    filename = f"pedidos_{datetime.now().strftime('%Y%m%d')}.csv"
+    
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
 @app.route('/nuevo-pedido', methods=['GET', 'POST'])
 @login_required
 def nuevo_pedido():
