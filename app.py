@@ -48,7 +48,7 @@ COSTOS_VISA = {
     12: 0.08
 }
 
-METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta débito', 'Visa Cuotas']
+METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta débito']
 
 def get_db_connection():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
@@ -81,9 +81,10 @@ def init_db():
             descuento DECIMAL(5,4) DEFAULT 0,
             anticipo DECIMAL(10,2) DEFAULT 0,
             metodo_pago_anticipo VARCHAR(50),
+            cuotas_visa_anticipo INTEGER DEFAULT 0,
             fecha_sesion DATE,
             metodo_pago_saldo VARCHAR(50),
-            cuotas_visa INTEGER DEFAULT 0,
+            cuotas_visa_saldo INTEGER DEFAULT 0,
             usuario_id INTEGER REFERENCES usuarios(id),
             fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -92,8 +93,10 @@ def init_db():
     try:
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS anticipo DECIMAL(10,2) DEFAULT 0')
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_pago_anticipo VARCHAR(50)')
+        cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cuotas_visa_anticipo INTEGER DEFAULT 0')
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS fecha_sesion DATE')
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_pago_saldo VARCHAR(50)')
+        cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cuotas_visa_saldo INTEGER DEFAULT 0')
     except:
         pass
     
@@ -114,7 +117,7 @@ try:
 except Exception as e:
     print(f"Error inicializando DB: {e}")
 
-def calcular_totales(producto, cantidad, descuento=0, cuotas_visa=0, anticipo=0):
+def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_anticipo=0, cuotas_visa_saldo=0):
     config = PRODUCTOS_CONFIG[producto]
     precio_unitario = config['precio']
     costos_detalle = {k: v * cantidad for k, v in config['costos'].items()}
@@ -122,16 +125,23 @@ def calcular_totales(producto, cantidad, descuento=0, cuotas_visa=0, anticipo=0)
     
     subtotal = precio_unitario * cantidad
     total_venta = subtotal * (1 - descuento)
-    
-    costo_visa = 0
-    if cuotas_visa > 0 and cuotas_visa in COSTOS_VISA:
-        costo_visa = total_venta * COSTOS_VISA[cuotas_visa]
-    
-    costo_total = costo_produccion + costo_visa
     saldo_restante = total_venta - anticipo
+    
+    # Costo VISA del anticipo
+    costo_visa_anticipo = 0
+    if cuotas_visa_anticipo > 0 and cuotas_visa_anticipo in COSTOS_VISA:
+        costo_visa_anticipo = anticipo * COSTOS_VISA[cuotas_visa_anticipo]
+    
+    # Costo VISA del saldo
+    costo_visa_saldo = 0
+    if cuotas_visa_saldo > 0 and cuotas_visa_saldo in COSTOS_VISA:
+        costo_visa_saldo = saldo_restante * COSTOS_VISA[cuotas_visa_saldo]
+    
+    costo_visa_total = costo_visa_anticipo + costo_visa_saldo
+    costo_total = costo_produccion + costo_visa_total
     utilidad = total_venta - costo_total
     porcentaje_utilidad = (utilidad / total_venta * 100) if total_venta > 0 else 0
-    disponible_anticipo = anticipo - costo_total
+    disponible_anticipo = anticipo - costo_produccion - costo_visa_anticipo
     
     return {
         'precio_unitario': precio_unitario,
@@ -141,7 +151,9 @@ def calcular_totales(producto, cantidad, descuento=0, cuotas_visa=0, anticipo=0)
         'saldo_restante': saldo_restante,
         'costos_detalle': costos_detalle,
         'costo_produccion': costo_produccion,
-        'costo_visa': costo_visa,
+        'costo_visa_anticipo': costo_visa_anticipo,
+        'costo_visa_saldo': costo_visa_saldo,
+        'costo_visa_total': costo_visa_total,
         'costo_total': costo_total,
         'utilidad': utilidad,
         'porcentaje_utilidad': porcentaje_utilidad,
@@ -246,12 +258,16 @@ def dashboard():
     for pedido in pedidos:
         try:
             anticipo = float(pedido['anticipo']) if pedido.get('anticipo') else 0
+            cuotas_visa_anticipo = pedido.get('cuotas_visa_anticipo') or 0
+            cuotas_visa_saldo = pedido.get('cuotas_visa_saldo') or 0
+            
             totales = calcular_totales(
                 pedido['producto'],
                 pedido['cantidad'],
                 float(pedido['descuento']) if pedido['descuento'] else 0,
-                pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0,
-                anticipo
+                anticipo,
+                cuotas_visa_anticipo,
+                cuotas_visa_saldo
             )
             
             pedidos_procesados.append({
@@ -346,8 +362,9 @@ def exportar_excel():
                 pedido['producto'],
                 pedido['cantidad'],
                 float(pedido['descuento']) if pedido['descuento'] else 0,
-                pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0,
-                anticipo
+                anticipo,
+                pedido.get('cuotas_visa_anticipo') or 0,
+                pedido.get('cuotas_visa_saldo') or 0
             )
             writer.writerow([
                 pedido['fecha'],
@@ -384,18 +401,19 @@ def nuevo_pedido():
         descuento = float(request.form.get('descuento', 0)) / 100
         anticipo = float(request.form.get('anticipo', 0))
         metodo_pago_anticipo = request.form.get('metodo_pago_anticipo', '')
+        cuotas_visa_anticipo = int(request.form.get('cuotas_visa_anticipo', 0))
         fecha_sesion = request.form.get('fecha_sesion') or None
         metodo_pago_saldo = request.form.get('metodo_pago_saldo', '')
-        cuotas_visa = int(request.form.get('cuotas_visa', 0))
+        cuotas_visa_saldo = int(request.form.get('cuotas_visa_saldo', 0))
         
         precio_unitario = PRODUCTOS_CONFIG[producto]['precio']
         
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute('''
-            INSERT INTO pedidos (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa, usuario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa, session['user_id']))
+            INSERT INTO pedidos (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, cuotas_visa_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa_saldo, usuario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, cuotas_visa_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa_saldo, session['user_id']))
         conn.commit()
         cur.close()
         conn.close()
@@ -422,14 +440,15 @@ def editar_pedido(pedido_id):
         descuento = float(request.form.get('descuento', 0)) / 100
         anticipo = float(request.form.get('anticipo', 0))
         metodo_pago_anticipo = request.form.get('metodo_pago_anticipo', '')
+        cuotas_visa_anticipo = int(request.form.get('cuotas_visa_anticipo', 0))
         fecha_sesion = request.form.get('fecha_sesion') or None
         metodo_pago_saldo = request.form.get('metodo_pago_saldo', '')
-        cuotas_visa = int(request.form.get('cuotas_visa', 0))
+        cuotas_visa_saldo = int(request.form.get('cuotas_visa_saldo', 0))
         precio_unitario = PRODUCTOS_CONFIG[producto]['precio']
         
         cur.execute('''
-            UPDATE pedidos SET fecha=%s, cliente=%s, producto=%s, cantidad=%s, precio_unitario=%s, descuento=%s, anticipo=%s, metodo_pago_anticipo=%s, fecha_sesion=%s, metodo_pago_saldo=%s, cuotas_visa=%s WHERE id=%s
-        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa, pedido_id))
+            UPDATE pedidos SET fecha=%s, cliente=%s, producto=%s, cantidad=%s, precio_unitario=%s, descuento=%s, anticipo=%s, metodo_pago_anticipo=%s, cuotas_visa_anticipo=%s, fecha_sesion=%s, metodo_pago_saldo=%s, cuotas_visa_saldo=%s WHERE id=%s
+        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, cuotas_visa_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa_saldo, pedido_id))
         conn.commit()
         cur.close()
         conn.close()
