@@ -25,7 +25,7 @@
             </a>
             <a href="{{ url_for('exportar_excel', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}"
                class="ml-auto bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition text-sm uppercase tracking-wider">
-                Exportar Excel
+                <i class="fas fa-file-excel mr-2"></i>Exportar Excel
             </a>
         </form>
     </div>
@@ -117,12 +117,12 @@
         </div>
     </div>
 
-    <!-- Gráfica Anticipos vs Costos -->
+    <!-- Gráfica Anticipos vs Saldos vs Costos -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-6">Anticipos vs Costos por Producto</h3>
+        <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-6">Anticipos vs Saldos Pendientes vs Costos</h3>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div class="h-72">
-                <canvas id="chartAnticiposCostos"></canvas>
+                <canvas id="chartComparativo"></canvas>
             </div>
             <div class="space-y-4">
                 <div class="bg-gray-50 p-4 rounded-lg">
@@ -130,14 +130,18 @@
                         <h4 class="font-medium text-gray-800">Cuadros Grande</h4>
                         <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{{ estadisticas.pedidos_grande }} uds</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-3 gap-3">
                         <div>
                             <p class="text-xs text-gray-500">Anticipos</p>
-                            <p class="text-lg font-semibold text-green-600">Q {{ "{:,.2f}".format(estadisticas.anticipos_grande) }}</p>
+                            <p class="text-base font-semibold text-green-600">Q {{ "{:,.0f}".format(estadisticas.anticipos_grande) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Saldos</p>
+                            <p class="text-base font-semibold text-orange-500">Q {{ "{:,.0f}".format(estadisticas.saldos_grande) }}</p>
                         </div>
                         <div>
                             <p class="text-xs text-gray-500">Costos</p>
-                            <p class="text-lg font-semibold text-red-600">Q {{ "{:,.2f}".format(estadisticas.costos_grande) }}</p>
+                            <p class="text-base font-semibold text-red-600">Q {{ "{:,.0f}".format(estadisticas.costos_grande) }}</p>
                         </div>
                     </div>
                 </div>
@@ -147,14 +151,18 @@
                         <h4 class="font-medium text-gray-800">Cuadros Mediano</h4>
                         <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{{ estadisticas.pedidos_mediano }} uds</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-3 gap-3">
                         <div>
                             <p class="text-xs text-gray-500">Anticipos</p>
-                            <p class="text-lg font-semibold text-green-600">Q {{ "{:,.2f}".format(estadisticas.anticipos_mediano) }}</p>
+                            <p class="text-base font-semibold text-green-600">Q {{ "{:,.0f}".format(estadisticas.anticipos_mediano) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Saldos</p>
+                            <p class="text-base font-semibold text-orange-500">Q {{ "{:,.0f}".format(estadisticas.saldos_mediano) }}</p>
                         </div>
                         <div>
                             <p class="text-xs text-gray-500">Costos</p>
-                            <p class="text-lg font-semibold text-red-600">Q {{ "{:,.2f}".format(estadisticas.costos_mediano) }}</p>
+                            <p class="text-base font-semibold text-red-600">Q {{ "{:,.0f}".format(estadisticas.costos_mediano) }}</p>
                         </div>
                     </div>
                 </div>
@@ -236,11 +244,13 @@
 {% block scripts %}
 <script>
     const anticiposGrande = {{ estadisticas.anticipos_grande }};
+    const saldosGrande = {{ estadisticas.saldos_grande }};
     const costosGrande = {{ estadisticas.costos_grande }};
     const anticiposMediano = {{ estadisticas.anticipos_mediano }};
+    const saldosMediano = {{ estadisticas.saldos_mediano }};
     const costosMediano = {{ estadisticas.costos_mediano }};
     
-    const ctx = document.getElementById('chartAnticiposCostos').getContext('2d');
+    const ctx = document.getElementById('chartComparativo').getContext('2d');
     new Chart(ctx, {
         type: 'bar',
         data: {
@@ -251,6 +261,14 @@
                     data: [anticiposGrande, anticiposMediano],
                     backgroundColor: 'rgba(34, 197, 94, 0.8)',
                     borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Saldos Pendientes',
+                    data: [saldosGrande, saldosMediano],
+                    backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                    borderColor: 'rgba(249, 115, 22, 1)',
                     borderWidth: 1,
                     borderRadius: 4
                 },
@@ -270,7 +288,14 @@
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: { padding: 20, font: { size: 12 } }
+                    labels: { padding: 15, font: { size: 11 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': Q' + context.raw.toLocaleString('es-GT', {minimumFractionDigits: 2});
+                        }
+                    }
                 }
             },
             scales: {
