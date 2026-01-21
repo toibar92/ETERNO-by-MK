@@ -1,11 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, Response, send_file
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-import csv
 import io
 
 app = Flask(__name__)
@@ -127,12 +126,10 @@ def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_an
     total_venta = subtotal * (1 - descuento)
     saldo_restante = total_venta - anticipo
     
-    # Costo VISA del anticipo
     costo_visa_anticipo = 0
     if cuotas_visa_anticipo > 0 and cuotas_visa_anticipo in COSTOS_VISA:
         costo_visa_anticipo = anticipo * COSTOS_VISA[cuotas_visa_anticipo]
     
-    # Costo VISA del saldo
     costo_visa_saldo = 0
     if cuotas_visa_saldo > 0 and cuotas_visa_saldo in COSTOS_VISA:
         costo_visa_saldo = saldo_restante * COSTOS_VISA[cuotas_visa_saldo]
@@ -251,6 +248,8 @@ def dashboard():
     pedidos_mediano = 0
     anticipos_grande = 0
     anticipos_mediano = 0
+    saldos_grande = 0
+    saldos_mediano = 0
     costos_grande = 0
     costos_mediano = 0
     
@@ -290,10 +289,12 @@ def dashboard():
             if pedido['producto'] == 'Grande':
                 pedidos_grande += pedido['cantidad']
                 anticipos_grande += anticipo
+                saldos_grande += totales['saldo_restante']
                 costos_grande += totales['costo_total']
             else:
                 pedidos_mediano += pedido['cantidad']
                 anticipos_mediano += anticipo
+                saldos_mediano += totales['saldo_restante']
                 costos_mediano += totales['costo_total']
         except:
             continue
@@ -313,6 +314,8 @@ def dashboard():
         'pedidos_mediano': pedidos_mediano,
         'anticipos_grande': anticipos_grande,
         'anticipos_mediano': anticipos_mediano,
+        'saldos_grande': saldos_grande,
+        'saldos_mediano': saldos_mediano,
         'costos_grande': costos_grande,
         'costos_mediano': costos_mediano
     }
@@ -326,6 +329,10 @@ def dashboard():
 @app.route('/exportar-excel')
 @login_required
 def exportar_excel():
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.utils import get_column_letter
+    
     fecha_inicio = request.args.get('fecha_inicio', '')
     fecha_fin = request.args.get('fecha_fin', '')
     
@@ -351,9 +358,59 @@ def exportar_excel():
     cur.close()
     conn.close()
     
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Fecha', 'Cliente', 'Producto', 'Cantidad', 'Total Venta', 'Anticipo', 'Saldo Pendiente', 'Fecha Sesión', 'Costo Total', 'Utilidad'])
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pedidos"
+    
+    # Estilos
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="000000", end_color="000000", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center")
+    
+    cell_alignment = Alignment(horizontal="center", vertical="center")
+    money_alignment = Alignment(horizontal="right", vertical="center")
+    
+    thin_border = Border(
+        left=Side(style='thin', color='CCCCCC'),
+        right=Side(style='thin', color='CCCCCC'),
+        top=Side(style='thin', color='CCCCCC'),
+        bottom=Side(style='thin', color='CCCCCC')
+    )
+    
+    green_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
+    orange_fill = PatternFill(start_color="FFF3E0", end_color="FFF3E0", fill_type="solid")
+    red_fill = PatternFill(start_color="FFEBEE", end_color="FFEBEE", fill_type="solid")
+    
+    # Título
+    ws.merge_cells('A1:J1')
+    ws['A1'] = 'ETERNO by MK - Reporte de Pedidos'
+    ws['A1'].font = Font(bold=True, size=16)
+    ws['A1'].alignment = Alignment(horizontal="center")
+    
+    ws.merge_cells('A2:J2')
+    fecha_reporte = f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    if fecha_inicio and fecha_fin:
+        fecha_reporte += f" | Período: {fecha_inicio} a {fecha_fin}"
+    ws['A2'] = fecha_reporte
+    ws['A2'].alignment = Alignment(horizontal="center")
+    ws['A2'].font = Font(size=10, color="666666")
+    
+    # Headers
+    headers = ['Fecha', 'Cliente', 'Producto', 'Cant.', 'Total Venta', 'Anticipo', 'Saldo', 'Fecha Sesión', 'Costo', 'Utilidad']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Datos
+    row = 5
+    total_venta = 0
+    total_anticipo = 0
+    total_saldo = 0
+    total_costo = 0
+    total_utilidad = 0
     
     for pedido in pedidos:
         try:
@@ -366,28 +423,77 @@ def exportar_excel():
                 pedido.get('cuotas_visa_anticipo') or 0,
                 pedido.get('cuotas_visa_saldo') or 0
             )
-            writer.writerow([
-                pedido['fecha'],
-                pedido['cliente'],
-                pedido['producto'],
-                pedido['cantidad'],
-                totales['total_venta'],
-                anticipo,
-                totales['saldo_restante'],
-                pedido.get('fecha_sesion', ''),
-                totales['costo_total'],
-                totales['utilidad']
-            ])
+            
+            ws.cell(row=row, column=1, value=pedido['fecha'].strftime('%d/%m/%Y') if pedido['fecha'] else '').alignment = cell_alignment
+            ws.cell(row=row, column=2, value=pedido['cliente'])
+            ws.cell(row=row, column=3, value=pedido['producto']).alignment = cell_alignment
+            ws.cell(row=row, column=4, value=pedido['cantidad']).alignment = cell_alignment
+            
+            cell_venta = ws.cell(row=row, column=5, value=totales['total_venta'])
+            cell_venta.number_format = '"Q"#,##0.00'
+            cell_venta.alignment = money_alignment
+            
+            cell_anticipo = ws.cell(row=row, column=6, value=anticipo)
+            cell_anticipo.number_format = '"Q"#,##0.00'
+            cell_anticipo.alignment = money_alignment
+            cell_anticipo.fill = green_fill
+            
+            cell_saldo = ws.cell(row=row, column=7, value=totales['saldo_restante'])
+            cell_saldo.number_format = '"Q"#,##0.00'
+            cell_saldo.alignment = money_alignment
+            cell_saldo.fill = orange_fill
+            
+            ws.cell(row=row, column=8, value=pedido['fecha_sesion'].strftime('%d/%m/%Y') if pedido.get('fecha_sesion') else '-').alignment = cell_alignment
+            
+            cell_costo = ws.cell(row=row, column=9, value=totales['costo_total'])
+            cell_costo.number_format = '"Q"#,##0.00'
+            cell_costo.alignment = money_alignment
+            cell_costo.fill = red_fill
+            
+            cell_utilidad = ws.cell(row=row, column=10, value=totales['utilidad'])
+            cell_utilidad.number_format = '"Q"#,##0.00'
+            cell_utilidad.alignment = money_alignment
+            
+            for col in range(1, 11):
+                ws.cell(row=row, column=col).border = thin_border
+            
+            total_venta += totales['total_venta']
+            total_anticipo += anticipo
+            total_saldo += totales['saldo_restante']
+            total_costo += totales['costo_total']
+            total_utilidad += totales['utilidad']
+            
+            row += 1
         except:
             continue
     
-    output.seek(0)
-    filename = f"pedidos_{datetime.now().strftime('%Y%m%d')}.csv"
+    # Totales
+    row += 1
+    ws.cell(row=row, column=4, value='TOTALES:').font = Font(bold=True)
     
-    return Response(
-        output.getvalue(),
-        mimetype='text/csv',
-        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    for col, val in [(5, total_venta), (6, total_anticipo), (7, total_saldo), (9, total_costo), (10, total_utilidad)]:
+        cell = ws.cell(row=row, column=col, value=val)
+        cell.number_format = '"Q"#,##0.00'
+        cell.font = Font(bold=True)
+        cell.alignment = money_alignment
+    
+    # Ajustar anchos
+    column_widths = [12, 25, 12, 8, 15, 15, 15, 14, 15, 15]
+    for i, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+    
+    # Guardar
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"pedidos_eterno_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
     )
 
 @app.route('/nuevo-pedido', methods=['GET', 'POST'])
