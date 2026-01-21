@@ -6,8 +6,10 @@
     <title>{% block title %}Calculadora Eterno{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        body { font-family: 'Montserrat', sans-serif; }
         .dropdown-menu {
             opacity: 0;
             visibility: hidden;
@@ -32,44 +34,44 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
     {% if session.user_id %}
-    <nav class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg">
+    <nav class="bg-black text-white shadow-lg">
         <div class="container mx-auto px-4">
             <div class="flex justify-between items-center py-4">
-                <a href="{{ url_for('dashboard') }}" class="text-xl font-bold flex items-center">
-                    <i class="fas fa-calculator mr-2"></i>Calculadora Eterno
+                <a href="{{ url_for('dashboard') }}" class="text-xl font-light tracking-widest flex items-center uppercase">
+                    <span class="font-semibold">Eterno</span><span class="ml-1 text-gray-400 text-sm">by MK</span>
                 </a>
-                <div class="flex items-center space-x-6">
-                    <a href="{{ url_for('dashboard') }}" class="hover:text-indigo-200 transition">
+                <div class="flex items-center space-x-8">
+                    <a href="{{ url_for('dashboard') }}" class="hover:text-gray-300 transition text-sm tracking-wide">
                         <i class="fas fa-home mr-1"></i>Dashboard
                     </a>
-                    <a href="{{ url_for('nuevo_pedido') }}" class="hover:text-indigo-200 transition">
+                    <a href="{{ url_for('nuevo_pedido') }}" class="hover:text-gray-300 transition text-sm tracking-wide">
                         <i class="fas fa-plus mr-1"></i>Nuevo Pedido
                     </a>
                     {% if session.rol == 'admin' %}
-                    <a href="{{ url_for('usuarios') }}" class="hover:text-indigo-200 transition">
+                    <a href="{{ url_for('usuarios') }}" class="hover:text-gray-300 transition text-sm tracking-wide">
                         <i class="fas fa-users mr-1"></i>Usuarios
                     </a>
                     {% endif %}
                     
                     <div class="dropdown relative">
-                        <button class="hover:text-indigo-200 flex items-center px-3 py-2 rounded-lg hover:bg-indigo-700 transition cursor-pointer">
-                            <i class="fas fa-user-circle mr-2 text-xl"></i>
+                        <button class="hover:text-gray-300 flex items-center px-3 py-2 rounded transition cursor-pointer text-sm tracking-wide">
+                            <i class="fas fa-user-circle mr-2 text-lg"></i>
                             <span>{{ session.nombre }}</span>
-                            <i class="fas fa-chevron-down ml-2 text-sm"></i>
+                            <i class="fas fa-chevron-down ml-2 text-xs"></i>
                         </button>
                         <div class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50">
                             <div class="px-4 py-3 border-b border-gray-100">
-                                <p class="text-sm text-gray-500">Sesión iniciada como</p>
+                                <p class="text-xs text-gray-500">Sesión iniciada como</p>
                                 <p class="text-sm font-medium text-gray-900">{{ session.username }}</p>
                             </div>
                             <a href="{{ url_for('cambiar_contrasena') }}" 
-                               class="flex items-center px-4 py-3 text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                               class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition text-sm">
                                 <i class="fas fa-key mr-3 text-gray-400"></i>
                                 Cambiar Contraseña
                             </a>
                             <div class="border-t border-gray-100"></div>
                             <a href="{{ url_for('logout') }}" 
-                               class="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 transition">
+                               class="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 transition text-sm">
                                 <i class="fas fa-sign-out-alt mr-3"></i>
                                 Cerrar Sesión
                             </a>
@@ -96,9 +98,9 @@
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="bg-gray-800 text-white py-4 mt-8">
+    <footer class="bg-black text-white py-6 mt-8">
         <div class="container mx-auto px-4 text-center">
-            <p>&copy; 2026 Eterno by MK - Todos los derechos reservados</p>
+            <p class="text-sm text-gray-400 tracking-wide">&copy; 2026 ETERNO by MK - Todos los derechos reservados</p>
         </div>
     </footer>
     
