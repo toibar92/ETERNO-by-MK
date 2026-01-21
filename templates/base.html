@@ -36,9 +36,9 @@
     {% if session.user_id %}
     <nav class="bg-black text-white shadow-lg">
         <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <a href="{{ url_for('dashboard') }}" class="text-xl font-light tracking-widest flex items-center uppercase">
-                    <span class="font-semibold">Eterno</span><span class="ml-1 text-gray-400 text-sm">by MK</span>
+            <div class="flex justify-between items-center py-3">
+                <a href="{{ url_for('dashboard') }}" class="flex items-center">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Eterno by MK" class="h-10">
                 </a>
                 <div class="flex items-center space-x-8">
                     <a href="{{ url_for('dashboard') }}" class="hover:text-gray-300 transition text-sm tracking-wide">
@@ -100,7 +100,8 @@
 
     <footer class="bg-black text-white py-6 mt-8">
         <div class="container mx-auto px-4 text-center">
-            <p class="text-sm text-gray-400 tracking-wide">&copy; 2026 ETERNO by MK - Todos los derechos reservados</p>
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Eterno by MK" class="h-8 mx-auto mb-3 opacity-70">
+            <p class="text-xs text-gray-500 tracking-wider">&copy; 2026 Todos los derechos reservados</p>
         </div>
     </footer>
     
