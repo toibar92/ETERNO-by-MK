@@ -40,13 +40,15 @@ PRODUCTOS_CONFIG = {
     }
 }
 
-RECARGOS_VISA = {
+COSTOS_VISA = {
     2: 0.05,
     3: 0.0575,
     6: 0.07,
     10: 0.07,
     12: 0.08
 }
+
+METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta débito', 'Visa Cuotas']
 
 def get_db_connection():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
@@ -77,11 +79,23 @@ def init_db():
             cantidad INTEGER DEFAULT 1,
             precio_unitario DECIMAL(10,2) NOT NULL,
             descuento DECIMAL(5,4) DEFAULT 0,
+            anticipo DECIMAL(10,2) DEFAULT 0,
+            metodo_pago_anticipo VARCHAR(50),
+            fecha_sesion DATE,
+            metodo_pago_saldo VARCHAR(50),
             cuotas_visa INTEGER DEFAULT 0,
             usuario_id INTEGER REFERENCES usuarios(id),
             fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    try:
+        cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS anticipo DECIMAL(10,2) DEFAULT 0')
+        cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_pago_anticipo VARCHAR(50)')
+        cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS fecha_sesion DATE')
+        cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_pago_saldo VARCHAR(50)')
+    except:
+        pass
     
     cur.execute("SELECT * FROM usuarios WHERE username = 'admin'")
     if not cur.fetchone():
@@ -100,33 +114,38 @@ try:
 except Exception as e:
     print(f"Error inicializando DB: {e}")
 
-def calcular_totales(producto, cantidad, descuento=0, cuotas_visa=0):
+def calcular_totales(producto, cantidad, descuento=0, cuotas_visa=0, anticipo=0):
     config = PRODUCTOS_CONFIG[producto]
     precio_unitario = config['precio']
-    costo_unitario = sum(config['costos'].values())
+    costos_detalle = {k: v * cantidad for k, v in config['costos'].items()}
+    costo_produccion = sum(costos_detalle.values())
     
     subtotal = precio_unitario * cantidad
     total_venta = subtotal * (1 - descuento)
     
-    recargo_visa = 0
-    if cuotas_visa > 0 and cuotas_visa in RECARGOS_VISA:
-        recargo_visa = total_venta * RECARGOS_VISA[cuotas_visa]
+    costo_visa = 0
+    if cuotas_visa > 0 and cuotas_visa in COSTOS_VISA:
+        costo_visa = total_venta * COSTOS_VISA[cuotas_visa]
     
-    total_con_recargo = total_venta + recargo_visa
-    costo_total = costo_unitario * cantidad
-    utilidad = total_con_recargo - costo_total
-    porcentaje_utilidad = (utilidad / total_con_recargo * 100) if total_con_recargo > 0 else 0
+    costo_total = costo_produccion + costo_visa
+    saldo_restante = total_venta - anticipo
+    utilidad = total_venta - costo_total
+    porcentaje_utilidad = (utilidad / total_venta * 100) if total_venta > 0 else 0
+    disponible_anticipo = anticipo - costo_total
     
     return {
         'precio_unitario': precio_unitario,
         'subtotal': subtotal,
         'total_venta': total_venta,
-        'recargo_visa': recargo_visa,
-        'total_con_recargo': total_con_recargo,
+        'anticipo': anticipo,
+        'saldo_restante': saldo_restante,
+        'costos_detalle': costos_detalle,
+        'costo_produccion': costo_produccion,
+        'costo_visa': costo_visa,
         'costo_total': costo_total,
         'utilidad': utilidad,
         'porcentaje_utilidad': porcentaje_utilidad,
-        'reserva_costos': costo_total
+        'disponible_anticipo': disponible_anticipo
     }
 
 def login_required(f):
@@ -212,24 +231,27 @@ def dashboard():
     cur.close()
     conn.close()
     
-    total_ventas = 0
+    total_anticipos = 0
+    total_saldos_pendientes = 0
     total_costos = 0
     total_utilidad = 0
     pedidos_grande = 0
     pedidos_mediano = 0
-    ventas_grande = 0
-    ventas_mediano = 0
+    anticipos_grande = 0
+    anticipos_mediano = 0
     costos_grande = 0
     costos_mediano = 0
     
     pedidos_procesados = []
     for pedido in pedidos:
         try:
+            anticipo = float(pedido['anticipo']) if pedido.get('anticipo') else 0
             totales = calcular_totales(
                 pedido['producto'],
                 pedido['cantidad'],
                 float(pedido['descuento']) if pedido['descuento'] else 0,
-                pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0
+                pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0,
+                anticipo
             )
             
             pedidos_procesados.append({
@@ -238,36 +260,43 @@ def dashboard():
                 'cliente': pedido['cliente'],
                 'producto': pedido['producto'],
                 'cantidad': pedido['cantidad'],
+                'fecha_sesion': pedido.get('fecha_sesion'),
+                'metodo_pago_anticipo': pedido.get('metodo_pago_anticipo', ''),
+                'metodo_pago_saldo': pedido.get('metodo_pago_saldo', ''),
                 **totales
             })
             
-            total_ventas += totales['total_con_recargo']
+            total_anticipos += anticipo
+            total_saldos_pendientes += totales['saldo_restante']
             total_costos += totales['costo_total']
             total_utilidad += totales['utilidad']
             
             if pedido['producto'] == 'Grande':
                 pedidos_grande += pedido['cantidad']
-                ventas_grande += totales['total_con_recargo']
+                anticipos_grande += anticipo
                 costos_grande += totales['costo_total']
             else:
                 pedidos_mediano += pedido['cantidad']
-                ventas_mediano += totales['total_con_recargo']
+                anticipos_mediano += anticipo
                 costos_mediano += totales['costo_total']
         except:
             continue
     
-    margen_promedio = (total_utilidad / total_ventas * 100) if total_ventas > 0 else 0
+    total_ventas_proyectadas = total_anticipos + total_saldos_pendientes
+    margen_promedio = (total_utilidad / total_ventas_proyectadas * 100) if total_ventas_proyectadas > 0 else 0
     
     estadisticas = {
-        'total_ventas': total_ventas,
+        'total_anticipos': total_anticipos,
+        'total_saldos_pendientes': total_saldos_pendientes,
+        'total_ventas_proyectadas': total_ventas_proyectadas,
         'total_costos': total_costos,
         'total_utilidad': total_utilidad,
         'margen_promedio': margen_promedio,
         'total_pedidos': len(pedidos_procesados),
         'pedidos_grande': pedidos_grande,
         'pedidos_mediano': pedidos_mediano,
-        'ventas_grande': ventas_grande,
-        'ventas_mediano': ventas_mediano,
+        'anticipos_grande': anticipos_grande,
+        'anticipos_mediano': anticipos_mediano,
         'costos_grande': costos_grande,
         'costos_mediano': costos_mediano
     }
@@ -275,7 +304,6 @@ def dashboard():
     return render_template('dashboard.html', 
                          pedidos=pedidos_procesados, 
                          estadisticas=estadisticas,
-                         productos_config=PRODUCTOS_CONFIG,
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin)
 
@@ -309,15 +337,17 @@ def exportar_excel():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(['Fecha', 'Cliente', 'Producto', 'Cantidad', 'Total Venta', 'Recargo VISA', 'Total', 'Costo', 'Utilidad'])
+    writer.writerow(['Fecha', 'Cliente', 'Producto', 'Cantidad', 'Total Venta', 'Anticipo', 'Saldo Pendiente', 'Fecha Sesión', 'Costo Total', 'Utilidad'])
     
     for pedido in pedidos:
         try:
+            anticipo = float(pedido['anticipo']) if pedido.get('anticipo') else 0
             totales = calcular_totales(
                 pedido['producto'],
                 pedido['cantidad'],
                 float(pedido['descuento']) if pedido['descuento'] else 0,
-                pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0
+                pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0,
+                anticipo
             )
             writer.writerow([
                 pedido['fecha'],
@@ -325,8 +355,9 @@ def exportar_excel():
                 pedido['producto'],
                 pedido['cantidad'],
                 totales['total_venta'],
-                totales['recargo_visa'],
-                totales['total_con_recargo'],
+                anticipo,
+                totales['saldo_restante'],
+                pedido.get('fecha_sesion', ''),
                 totales['costo_total'],
                 totales['utilidad']
             ])
@@ -351,6 +382,10 @@ def nuevo_pedido():
         producto = request.form['producto']
         cantidad = int(request.form['cantidad'])
         descuento = float(request.form.get('descuento', 0)) / 100
+        anticipo = float(request.form.get('anticipo', 0))
+        metodo_pago_anticipo = request.form.get('metodo_pago_anticipo', '')
+        fecha_sesion = request.form.get('fecha_sesion') or None
+        metodo_pago_saldo = request.form.get('metodo_pago_saldo', '')
         cuotas_visa = int(request.form.get('cuotas_visa', 0))
         
         precio_unitario = PRODUCTOS_CONFIG[producto]['precio']
@@ -358,9 +393,9 @@ def nuevo_pedido():
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute('''
-            INSERT INTO pedidos (fecha, cliente, producto, cantidad, precio_unitario, descuento, cuotas_visa, usuario_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, cuotas_visa, session['user_id']))
+            INSERT INTO pedidos (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa, usuario_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa, session['user_id']))
         conn.commit()
         cur.close()
         conn.close()
@@ -368,7 +403,10 @@ def nuevo_pedido():
         flash('Pedido registrado exitosamente', 'success')
         return redirect(url_for('dashboard'))
     
-    return render_template('nuevo_pedido.html', productos=PRODUCTOS_CONFIG, recargos_visa=RECARGOS_VISA)
+    return render_template('nuevo_pedido.html', 
+                         productos=PRODUCTOS_CONFIG, 
+                         costos_visa=COSTOS_VISA,
+                         metodos_pago=METODOS_PAGO)
 
 @app.route('/editar-pedido/<int:pedido_id>', methods=['GET', 'POST'])
 @login_required
@@ -382,12 +420,16 @@ def editar_pedido(pedido_id):
         producto = request.form['producto']
         cantidad = int(request.form['cantidad'])
         descuento = float(request.form.get('descuento', 0)) / 100
+        anticipo = float(request.form.get('anticipo', 0))
+        metodo_pago_anticipo = request.form.get('metodo_pago_anticipo', '')
+        fecha_sesion = request.form.get('fecha_sesion') or None
+        metodo_pago_saldo = request.form.get('metodo_pago_saldo', '')
         cuotas_visa = int(request.form.get('cuotas_visa', 0))
         precio_unitario = PRODUCTOS_CONFIG[producto]['precio']
         
         cur.execute('''
-            UPDATE pedidos SET fecha=%s, cliente=%s, producto=%s, cantidad=%s, precio_unitario=%s, descuento=%s, cuotas_visa=%s WHERE id=%s
-        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, cuotas_visa, pedido_id))
+            UPDATE pedidos SET fecha=%s, cliente=%s, producto=%s, cantidad=%s, precio_unitario=%s, descuento=%s, anticipo=%s, metodo_pago_anticipo=%s, fecha_sesion=%s, metodo_pago_saldo=%s, cuotas_visa=%s WHERE id=%s
+        ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, anticipo, metodo_pago_anticipo, fecha_sesion, metodo_pago_saldo, cuotas_visa, pedido_id))
         conn.commit()
         cur.close()
         conn.close()
@@ -400,7 +442,11 @@ def editar_pedido(pedido_id):
     cur.close()
     conn.close()
     
-    return render_template('editar_pedido.html', pedido=pedido, productos=PRODUCTOS_CONFIG, recargos_visa=RECARGOS_VISA)
+    return render_template('editar_pedido.html', 
+                         pedido=pedido, 
+                         productos=PRODUCTOS_CONFIG, 
+                         costos_visa=COSTOS_VISA,
+                         metodos_pago=METODOS_PAGO)
 
 @app.route('/eliminar-pedido/<int:pedido_id>')
 @login_required
