@@ -3,186 +3,200 @@
 {% block title %}Nuevo Pedido - ETERNO by MK{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto">
+<div class="max-w-6xl mx-auto">
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div class="px-8 py-6 border-b border-gray-200">
             <h2 class="text-2xl font-light text-black tracking-wide">Nuevo Pedido</h2>
-            <p class="text-gray-400 text-sm mt-1">Registra los datos del pedido</p>
         </div>
 
         <form method="POST" class="p-8">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
                 
-                <!-- Columna izquierda - Formulario -->
-                <div class="space-y-6">
-                    <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2">Datos del Pedido</h3>
-                    
+                <!-- Columna izquierda - Formulario (3 cols) -->
+                <div class="lg:col-span-3 space-y-6">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Fecha Pedido</label>
                             <input type="date" name="fecha" id="fecha" required
-                                   class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
+                                   class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Fecha Sesión</label>
-                            <input type="date" name="fecha_sesion" id="fecha_sesion"
-                                   class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Cliente</label>
+                            <input type="text" name="cliente" required placeholder="Nombre"
+                                   class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Cliente</label>
-                        <input type="text" name="cliente" required placeholder="Nombre del cliente"
-                               class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Producto</label>
                             <select name="producto" id="producto" required onchange="calcularPreview()"
-                                    class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
+                                    class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
                                 <option value="">Seleccionar</option>
                                 {% for nombre, config in productos.items() %}
-                                <option value="{{ nombre }}" data-precio="{{ config.precio }}">{{ nombre }} - Q{{ '{:,.0f}'.format(config.precio) }}</option>
+                                <option value="{{ nombre }}" data-precio="{{ config.precio }}">{{ nombre }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Cantidad</label>
                             <input type="number" name="cantidad" id="cantidad" min="1" value="1" required onchange="calcularPreview()"
-                                   class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
+                                   class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Descuento %</label>
+                            <input type="number" name="descuento" id="descuento" min="0" max="100" step="0.1" value="0" onchange="calcularPreview()"
+                                   class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Descuento (%)</label>
-                        <input type="number" name="descuento" id="descuento" min="0" max="100" step="0.1" value="0" onchange="calcularPreview()"
-                               class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
+                    <div class="border-t border-gray-200 pt-4">
+                        <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Pago del Anticipo</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Monto (Q)</label>
+                                <input type="number" name="anticipo" id="anticipo" min="0" step="0.01" value="0" onchange="calcularPreview()"
+                                       class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Método</label>
+                                <select name="metodo_pago_anticipo" id="metodo_pago_anticipo" onchange="toggleVisaAnticipo()"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
+                                    <option value="">Seleccionar</option>
+                                    {% for metodo in metodos_pago %}
+                                    <option value="{{ metodo }}">{{ metodo }}</option>
+                                    {% endfor %}
+                                    <option value="Visa Cuotas">Visa Cuotas</option>
+                                </select>
+                            </div>
+                            <div id="visa-anticipo-container" style="display: none;">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Cuotas</label>
+                                <select name="cuotas_visa_anticipo" id="cuotas_visa_anticipo" onchange="calcularPreview()"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
+                                    <option value="0">-</option>
+                                    {% for cuotas, porcentaje in costos_visa.items() %}
+                                    <option value="{{ cuotas }}" data-costo="{{ porcentaje }}">{{ cuotas }} ({{ '{:.1f}'.format(porcentaje * 100) }}%)</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
-                    <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-200 pb-2 pt-4">Pagos</h3>
-
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Anticipo (Q)</label>
-                            <input type="number" name="anticipo" id="anticipo" min="0" step="0.01" value="0" onchange="calcularPreview()"
-                                   class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Método Anticipo</label>
-                            <select name="metodo_pago_anticipo" id="metodo_pago_anticipo" onchange="calcularPreview()"
-                                    class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
-                                <option value="">Seleccionar</option>
-                                {% for metodo in metodos_pago %}
-                                <option value="{{ metodo }}">{{ metodo }}</option>
-                                {% endfor %}
-                            </select>
+                    <div class="border-t border-gray-200 pt-4">
+                        <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-4">Pago del Saldo (en sesión)</h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Fecha Sesión</label>
+                                <input type="date" name="fecha_sesion" id="fecha_sesion"
+                                       class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Método</label>
+                                <select name="metodo_pago_saldo" id="metodo_pago_saldo" onchange="toggleVisaSaldo()"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
+                                    <option value="">Seleccionar</option>
+                                    {% for metodo in metodos_pago %}
+                                    <option value="{{ metodo }}">{{ metodo }}</option>
+                                    {% endfor %}
+                                    <option value="Visa Cuotas">Visa Cuotas</option>
+                                </select>
+                            </div>
+                            <div id="visa-saldo-container" style="display: none;">
+                                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Cuotas</label>
+                                <select name="cuotas_visa_saldo" id="cuotas_visa_saldo" onchange="calcularPreview()"
+                                        class="w-full px-3 py-2 border border-gray-200 rounded focus:border-black focus:ring-0 text-sm">
+                                    <option value="0">-</option>
+                                    {% for cuotas, porcentaje in costos_visa.items() %}
+                                    <option value="{{ cuotas }}" data-costo="{{ porcentaje }}">{{ cuotas }} ({{ '{:.1f}'.format(porcentaje * 100) }}%)</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Método Pago Saldo</label>
-                            <select name="metodo_pago_saldo" id="metodo_pago_saldo" onchange="calcularPreview()"
-                                    class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
-                                <option value="">Seleccionar</option>
-                                {% for metodo in metodos_pago %}
-                                <option value="{{ metodo }}">{{ metodo }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">VISA Cuotas</label>
-                            <select name="cuotas_visa" id="cuotas_visa" onchange="calcularPreview()"
-                                    class="w-full px-4 py-3 border border-gray-200 rounded focus:border-black focus:ring-0 text-black">
-                                <option value="0">Sin cuotas</option>
-                                {% for cuotas, porcentaje in costos_visa.items() %}
-                                <option value="{{ cuotas }}" data-costo="{{ porcentaje }}">{{ cuotas }} cuotas ({{ '{:.1f}'.format(porcentaje * 100) }}% costo)</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <div class="flex space-x-4 pt-4">
+                        <a href="{{ url_for('dashboard') }}" class="px-6 py-2 border border-gray-300 text-gray-600 rounded hover:bg-gray-50 text-sm uppercase tracking-wider">
+                            Cancelar
+                        </a>
+                        <button type="submit" class="px-8 py-2 bg-black text-white rounded hover:bg-gray-800 text-sm uppercase tracking-wider">
+                            Guardar
+                        </button>
                     </div>
                 </div>
 
-                <!-- Columna derecha - Preview -->
-                <div id="preview" class="bg-gray-50 rounded-lg p-6 space-y-6" style="display: none;">
-                    
-                    <div>
-                        <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-300 pb-2">Resumen del Pedido</h3>
-                        <div class="mt-4 space-y-3">
+                <!-- Columna derecha - Preview Compacto (2 cols) -->
+                <div class="lg:col-span-2">
+                    <div id="preview" class="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm" style="display: none;">
+                        
+                        <div class="text-center border-b border-gray-300 pb-3 mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider">Eterno by MK</p>
+                            <p class="font-medium text-black mt-1" id="preview-producto">-</p>
+                        </div>
+
+                        <div class="space-y-2 border-b border-gray-300 pb-3 mb-3">
                             <div class="flex justify-between">
-                                <span class="text-gray-600">Subtotal</span>
-                                <span id="preview-subtotal" class="font-medium">Q0.00</span>
+                                <span class="text-gray-500">Subtotal</span>
+                                <span id="preview-subtotal">Q0.00</span>
                             </div>
-                            <div class="flex justify-between text-sm">
-                                <span class="text-gray-500">Descuento</span>
-                                <span id="preview-descuento" class="text-red-600">-Q0.00</span>
+                            <div class="flex justify-between text-xs">
+                                <span class="text-gray-400">Descuento</span>
+                                <span id="preview-descuento" class="text-red-500">-Q0.00</span>
                             </div>
-                            <div class="flex justify-between text-lg font-semibold border-t border-gray-300 pt-3">
-                                <span>Total Venta</span>
+                            <div class="flex justify-between font-semibold text-base">
+                                <span>TOTAL VENTA</span>
                                 <span id="preview-total">Q0.00</span>
                             </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-300 pb-2">Estado de Pago</h3>
-                        <div class="mt-4 space-y-3">
+                        <div class="space-y-2 border-b border-gray-300 pb-3 mb-3">
                             <div class="flex justify-between">
-                                <span class="text-gray-600">Anticipo recibido</span>
-                                <span id="preview-anticipo" class="font-medium text-green-600">Q0.00</span>
+                                <span class="text-gray-500">Anticipo</span>
+                                <span id="preview-anticipo" class="text-green-600">Q0.00</span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-gray-600">Saldo pendiente</span>
-                                <span id="preview-saldo" class="font-medium text-orange-600">Q0.00</span>
+                                <span class="text-gray-500">Saldo pendiente</span>
+                                <span id="preview-saldo" class="text-orange-500">Q0.00</span>
                             </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wider border-b border-gray-300 pb-2">Reserva de Costos</h3>
-                        <div class="mt-4 space-y-2 text-sm" id="costos-detalle">
+                        <div class="space-y-1 border-b border-gray-300 pb-3 mb-3">
+                            <p class="text-xs text-gray-400 uppercase tracking-wider mb-2">Reserva de Costos</p>
+                            <div id="costos-detalle" class="space-y-1 text-xs"></div>
+                            <div id="costo-visa-anticipo-row" class="flex justify-between text-xs text-purple-600" style="display: none;">
+                                <span>Costo VISA anticipo</span>
+                                <span id="preview-costo-visa-anticipo">Q0.00</span>
+                            </div>
+                            <div id="costo-visa-saldo-row" class="flex justify-between text-xs text-purple-600" style="display: none;">
+                                <span>Costo VISA saldo</span>
+                                <span id="preview-costo-visa-saldo">Q0.00</span>
+                            </div>
+                            <div class="flex justify-between font-medium pt-1 border-t border-gray-200 mt-2">
+                                <span>Total costos</span>
+                                <span id="preview-costo-total" class="text-red-600">Q0.00</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between font-semibold border-t border-gray-300 pt-3 mt-3">
-                            <span>Total a reservar</span>
-                            <span id="preview-costo-total" class="text-red-600">Q0.00</span>
-                        </div>
-                        <div id="costo-visa-row" class="flex justify-between text-sm text-gray-500 mt-1" style="display: none;">
-                            <span>Incluye costo VISA</span>
-                            <span id="preview-costo-visa">Q0.00</span>
-                        </div>
-                    </div>
 
-                    <div class="bg-white rounded p-4 border border-gray-200">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-600">Disponible del anticipo</span>
-                            <span id="preview-disponible" class="text-xl font-bold">Q0.00</span>
+                        <div id="disponible-container" class="p-3 rounded mb-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 text-xs">Disponible anticipo</span>
+                                <span id="preview-disponible" class="font-bold">Q0.00</span>
+                            </div>
+                            <p id="mensaje-aporte" class="text-xs mt-1" style="display: none;"></p>
                         </div>
-                        <p class="text-xs text-gray-400 mt-1">Anticipo - Costos</p>
-                    </div>
 
-                    <div class="bg-black text-white rounded p-4">
-                        <div class="flex justify-between items-center">
-                            <span class="text-gray-300">Utilidad proyectada</span>
-                            <span id="preview-utilidad" class="text-xl font-bold">Q0.00</span>
+                        <div class="bg-black text-white p-3 rounded">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-300 text-xs">Utilidad</span>
+                                <span id="preview-utilidad" class="font-bold">Q0.00</span>
+                            </div>
+                            <div class="flex justify-between items-center mt-1">
+                                <span class="text-gray-400 text-xs">Margen</span>
+                                <span id="preview-margen" class="text-green-400 text-sm">0%</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between items-center mt-1">
-                            <span class="text-gray-400 text-sm">Margen</span>
-                            <span id="preview-margen" class="text-green-400">0%</span>
-                        </div>
+
                     </div>
                 </div>
-            </div>
-
-            <div class="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
-                <a href="{{ url_for('dashboard') }}" 
-                   class="px-6 py-3 border border-gray-300 text-gray-600 rounded hover:bg-gray-50 transition text-sm uppercase tracking-wider">
-                    Cancelar
-                </a>
-                <button type="submit" 
-                        class="px-8 py-3 bg-black text-white rounded hover:bg-gray-800 transition text-sm uppercase tracking-wider">
-                    Guardar Pedido
-                </button>
             </div>
         </form>
     </div>
@@ -192,17 +206,44 @@
     const productosConfig = {{ productos | tojson }};
     const costosVisa = {{ costos_visa | tojson }};
     
+    function toggleVisaAnticipo() {
+        const metodo = document.getElementById('metodo_pago_anticipo').value;
+        const container = document.getElementById('visa-anticipo-container');
+        if (metodo === 'Visa Cuotas') {
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+            document.getElementById('cuotas_visa_anticipo').value = '0';
+        }
+        calcularPreview();
+    }
+    
+    function toggleVisaSaldo() {
+        const metodo = document.getElementById('metodo_pago_saldo').value;
+        const container = document.getElementById('visa-saldo-container');
+        if (metodo === 'Visa Cuotas') {
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+            document.getElementById('cuotas_visa_saldo').value = '0';
+        }
+        calcularPreview();
+    }
+    
     function calcularPreview() {
         const producto = document.getElementById('producto').value;
         const cantidad = parseInt(document.getElementById('cantidad').value) || 0;
         const descuento = parseFloat(document.getElementById('descuento').value) || 0;
         const anticipo = parseFloat(document.getElementById('anticipo').value) || 0;
-        const cuotasVisa = parseInt(document.getElementById('cuotas_visa').value) || 0;
+        const cuotasVisaAnticipo = parseInt(document.getElementById('cuotas_visa_anticipo').value) || 0;
+        const cuotasVisaSaldo = parseInt(document.getElementById('cuotas_visa_saldo').value) || 0;
         
         if (!producto || cantidad === 0) {
             document.getElementById('preview').style.display = 'none';
             return;
         }
+        
+        document.getElementById('preview').style.display = 'block';
         
         const config = productosConfig[producto];
         const precio = config.precio;
@@ -219,23 +260,28 @@
         for (const [nombre, valor] of Object.entries(costos)) {
             const costoItem = valor * cantidad;
             costoProduccion += costoItem;
-            const nombreCapitalizado = nombre.charAt(0).toUpperCase() + nombre.slice(1);
-            costosHtml += `<div class="flex justify-between"><span class="text-gray-500">${nombreCapitalizado} (x${cantidad})</span><span>Q${costoItem.toLocaleString('es-GT', {minimumFractionDigits: 2})}</span></div>`;
+            const nombreCap = nombre.charAt(0).toUpperCase() + nombre.slice(1);
+            costosHtml += `<div class="flex justify-between text-gray-500"><span>${nombreCap}</span><span>Q${costoItem.toLocaleString('es-GT', {minimumFractionDigits: 2})}</span></div>`;
         }
         
         // Costo VISA
-        let costoVisa = 0;
-        if (cuotasVisa > 0 && costosVisa[cuotasVisa]) {
-            costoVisa = totalVenta * costosVisa[cuotasVisa];
+        let costoVisaAnticipo = 0;
+        if (cuotasVisaAnticipo > 0 && costosVisa[cuotasVisaAnticipo]) {
+            costoVisaAnticipo = anticipo * costosVisa[cuotasVisaAnticipo];
         }
         
-        const costoTotal = costoProduccion + costoVisa;
-        const disponible = anticipo - costoTotal;
+        let costoVisaSaldo = 0;
+        if (cuotasVisaSaldo > 0 && costosVisa[cuotasVisaSaldo]) {
+            costoVisaSaldo = saldoPendiente * costosVisa[cuotasVisaSaldo];
+        }
+        
+        const costoTotal = costoProduccion + costoVisaAnticipo + costoVisaSaldo;
+        const disponible = anticipo - costoProduccion - costoVisaAnticipo;
         const utilidad = totalVenta - costoTotal;
         const margen = totalVenta > 0 ? (utilidad / totalVenta * 100) : 0;
         
-        // Mostrar preview
-        document.getElementById('preview').style.display = 'block';
+        // Actualizar preview
+        document.getElementById('preview-producto').textContent = `${cantidad} ${producto}${cantidad > 1 ? 's' : ''} (${config.medidas})`;
         document.getElementById('preview-subtotal').textContent = 'Q' + subtotal.toLocaleString('es-GT', {minimumFractionDigits: 2});
         document.getElementById('preview-descuento').textContent = '-Q' + descuentoMonto.toLocaleString('es-GT', {minimumFractionDigits: 2});
         document.getElementById('preview-total').textContent = 'Q' + totalVenta.toLocaleString('es-GT', {minimumFractionDigits: 2});
@@ -244,15 +290,38 @@
         document.getElementById('costos-detalle').innerHTML = costosHtml;
         document.getElementById('preview-costo-total').textContent = 'Q' + costoTotal.toLocaleString('es-GT', {minimumFractionDigits: 2});
         
-        if (costoVisa > 0) {
-            document.getElementById('costo-visa-row').style.display = 'flex';
-            document.getElementById('preview-costo-visa').textContent = 'Q' + costoVisa.toLocaleString('es-GT', {minimumFractionDigits: 2});
+        // VISA anticipo
+        if (costoVisaAnticipo > 0) {
+            document.getElementById('costo-visa-anticipo-row').style.display = 'flex';
+            document.getElementById('preview-costo-visa-anticipo').textContent = 'Q' + costoVisaAnticipo.toLocaleString('es-GT', {minimumFractionDigits: 2});
         } else {
-            document.getElementById('costo-visa-row').style.display = 'none';
+            document.getElementById('costo-visa-anticipo-row').style.display = 'none';
         }
         
+        // VISA saldo
+        if (costoVisaSaldo > 0) {
+            document.getElementById('costo-visa-saldo-row').style.display = 'flex';
+            document.getElementById('preview-costo-visa-saldo').textContent = 'Q' + costoVisaSaldo.toLocaleString('es-GT', {minimumFractionDigits: 2});
+        } else {
+            document.getElementById('costo-visa-saldo-row').style.display = 'none';
+        }
+        
+        // Disponible y mensaje
+        const disponibleContainer = document.getElementById('disponible-container');
+        const mensajeAporte = document.getElementById('mensaje-aporte');
         document.getElementById('preview-disponible').textContent = 'Q' + disponible.toLocaleString('es-GT', {minimumFractionDigits: 2});
-        document.getElementById('preview-disponible').className = disponible >= 0 ? 'text-xl font-bold text-green-600' : 'text-xl font-bold text-red-600';
+        
+        if (disponible >= 0) {
+            disponibleContainer.className = 'p-3 rounded mb-3 bg-green-50 border border-green-200';
+            document.getElementById('preview-disponible').className = 'font-bold text-green-600';
+            mensajeAporte.style.display = 'none';
+        } else {
+            disponibleContainer.className = 'p-3 rounded mb-3 bg-red-50 border border-red-200';
+            document.getElementById('preview-disponible').className = 'font-bold text-red-600';
+            mensajeAporte.style.display = 'block';
+            mensajeAporte.className = 'text-xs mt-1 text-red-600 font-medium';
+            mensajeAporte.textContent = '⚠️ Se necesita aportar Q' + Math.abs(disponible).toLocaleString('es-GT', {minimumFractionDigits: 2}) + ' para cubrir costos';
+        }
         
         document.getElementById('preview-utilidad').textContent = 'Q' + utilidad.toLocaleString('es-GT', {minimumFractionDigits: 2});
         document.getElementById('preview-margen').textContent = margen.toFixed(1) + '%';
