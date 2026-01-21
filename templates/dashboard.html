@@ -1,137 +1,160 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Calculadora Eterno{% endblock %}
+{% block title %}Dashboard - ETERNO by MK{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Filtro por fechas y Exportar -->
-    <div class="bg-white rounded-lg shadow p-6">
+    <!-- Filtro por fechas -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <form method="GET" class="flex flex-wrap items-end gap-4">
             <div>
-                <label class="block text-gray-700 font-medium mb-2">
-                    <i class="fas fa-calendar text-indigo-600 mr-1"></i>Fecha Inicio
-                </label>
+                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Fecha Inicio</label>
                 <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"
-                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                       class="px-4 py-2 border border-gray-200 rounded focus:border-black focus:ring-0">
             </div>
             <div>
-                <label class="block text-gray-700 font-medium mb-2">
-                    <i class="fas fa-calendar text-indigo-600 mr-1"></i>Fecha Fin
-                </label>
+                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Fecha Fin</label>
                 <input type="date" name="fecha_fin" value="{{ fecha_fin }}"
-                       class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                       class="px-4 py-2 border border-gray-200 rounded focus:border-black focus:ring-0">
             </div>
-            <button type="submit"
-                    class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center">
-                <i class="fas fa-filter mr-2"></i>Filtrar
+            <button type="submit" class="bg-black text-white px-6 py-2 rounded hover:bg-gray-800 transition text-sm uppercase tracking-wider">
+                Filtrar
             </button>
-            <a href="{{ url_for('dashboard') }}"
-               class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition flex items-center">
-                <i class="fas fa-times mr-2"></i>Limpiar
+            <a href="{{ url_for('dashboard') }}" class="bg-gray-200 text-gray-700 px-6 py-2 rounded hover:bg-gray-300 transition text-sm uppercase tracking-wider">
+                Limpiar
             </a>
             <a href="{{ url_for('exportar_excel', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}"
-               class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition flex items-center ml-auto">
-                <i class="fas fa-file-excel mr-2"></i>Exportar Excel
+               class="ml-auto bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition text-sm uppercase tracking-wider">
+                Exportar Excel
             </a>
         </form>
     </div>
 
-    <!-- Resumen de estadísticas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-            <div class="flex items-center">
-                <div class="p-3 bg-green-100 rounded-full">
-                    <i class="fas fa-dollar-sign text-green-600 text-2xl"></i>
+    <!-- Tarjetas principales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Anticipos Recibidos -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Anticipos Recibidos</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_anticipos) }}</p>
+                    <p class="text-xs text-green-600 mt-1">Dinero en caja</p>
                 </div>
-                <div class="ml-4">
-                    <p class="text-gray-500 text-sm">Total Ventas</p>
-                    <p class="text-2xl font-bold text-gray-800">Q {{ "{:,.2f}".format(estadisticas.total_ventas) }}</p>
-                </div>
-            </div>
-        </div>
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
-            <div class="flex items-center">
-                <div class="p-3 bg-red-100 rounded-full">
-                    <i class="fas fa-receipt text-red-600 text-2xl"></i>
-                </div>
-                <div class="ml-4">
-                    <p class="text-gray-500 text-sm">Total Costos</p>
-                    <p class="text-2xl font-bold text-gray-800">Q {{ "{:,.2f}".format(estadisticas.total_costos) }}</p>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-wallet text-green-600"></i>
                 </div>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-            <div class="flex items-center">
-                <div class="p-3 bg-blue-100 rounded-full">
-                    <i class="fas fa-chart-line text-blue-600 text-2xl"></i>
+
+        <!-- Saldos Pendientes -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Saldos Pendientes</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_saldos_pendientes) }}</p>
+                    <p class="text-xs text-orange-600 mt-1">Por cobrar en sesiones</p>
                 </div>
-                <div class="ml-4">
-                    <p class="text-gray-500 text-sm">Utilidad Total</p>
-                    <p class="text-2xl font-bold text-gray-800">Q {{ "{:,.2f}".format(estadisticas.total_utilidad) }}</p>
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-clock text-orange-600"></i>
                 </div>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <div class="flex items-center">
-                <div class="p-3 bg-purple-100 rounded-full">
-                    <i class="fas fa-percentage text-purple-600 text-2xl"></i>
+
+        <!-- Ventas Proyectadas -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Ventas Proyectadas</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_ventas_proyectadas) }}</p>
+                    <p class="text-xs text-blue-600 mt-1">Total esperado</p>
                 </div>
-                <div class="ml-4">
-                    <p class="text-gray-500 text-sm">Margen Promedio</p>
-                    <p class="text-2xl font-bold text-gray-800">{{ "{:.1f}".format(estadisticas.margen_promedio) }}%</p>
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-chart-line text-blue-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Costos Totales -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Costos Totales</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_costos) }}</p>
+                    <p class="text-xs text-red-600 mt-1">Producción + VISA</p>
+                </div>
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-receipt text-red-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Utilidad Proyectada -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Utilidad Proyectada</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_utilidad) }}</p>
+                    <p class="text-xs text-green-600 mt-1">Ventas - Costos</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-piggy-bank text-green-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Margen -->
+        <div class="bg-black rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Margen Promedio</p>
+                    <p class="text-3xl font-light text-white mt-2">{{ "{:.1f}".format(estadisticas.margen_promedio) }}%</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ estadisticas.total_pedidos }} pedidos</p>
+                </div>
+                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <i class="fas fa-percentage text-white"></i>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Gráfica de Ingresos vs Costos -->
-    <div class="bg-white rounded-lg shadow p-6">
-        <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <i class="fas fa-chart-bar text-indigo-600 mr-2"></i>Ingresos vs Costos por Producto
-        </h3>
+    <!-- Gráfica Anticipos vs Costos -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-6">Anticipos vs Costos por Producto</h3>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="h-80">
-                <canvas id="chartIngresosVsCostos"></canvas>
+            <div class="h-72">
+                <canvas id="chartAnticiposCostos"></canvas>
             </div>
             <div class="space-y-4">
-                <div class="bg-gradient-to-r from-indigo-50 to-indigo-100 p-4 rounded-lg">
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="font-bold text-indigo-800">
-                            <i class="fas fa-image mr-2"></i>Cuadros Grande
-                        </h4>
-                        <span class="bg-indigo-200 text-indigo-800 px-2 py-1 rounded text-sm">
-                            {{ estadisticas.pedidos_grande }} unidades
-                        </span>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-medium text-gray-800">Cuadros Grande</h4>
+                        <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{{ estadisticas.pedidos_grande }} uds</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-4 mt-3">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <p class="text-xs text-gray-600">Ingresos</p>
-                            <p class="text-lg font-bold text-green-600">Q {{ "{:,.2f}".format(estadisticas.ventas_grande) }}</p>
+                            <p class="text-xs text-gray-500">Anticipos</p>
+                            <p class="text-lg font-semibold text-green-600">Q {{ "{:,.2f}".format(estadisticas.anticipos_grande) }}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-600">Costos</p>
-                            <p class="text-lg font-bold text-red-600">Q {{ "{:,.2f}".format(estadisticas.costos_grande) }}</p>
+                            <p class="text-xs text-gray-500">Costos</p>
+                            <p class="text-lg font-semibold text-red-600">Q {{ "{:,.2f}".format(estadisticas.costos_grande) }}</p>
                         </div>
                     </div>
                 </div>
                 
-                <div class="bg-gradient-to-r from-purple-50 to-purple-100 p-4 rounded-lg">
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="font-bold text-purple-800">
-                            <i class="fas fa-image mr-2"></i>Cuadros Mediano
-                        </h4>
-                        <span class="bg-purple-200 text-purple-800 px-2 py-1 rounded text-sm">
-                            {{ estadisticas.pedidos_mediano }} unidades
-                        </span>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-medium text-gray-800">Cuadros Mediano</h4>
+                        <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{{ estadisticas.pedidos_mediano }} uds</span>
                     </div>
-                    <div class="grid grid-cols-2 gap-4 mt-3">
+                    <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <p class="text-xs text-gray-600">Ingresos</p>
-                            <p class="text-lg font-bold text-green-600">Q {{ "{:,.2f}".format(estadisticas.ventas_mediano) }}</p>
+                            <p class="text-xs text-gray-500">Anticipos</p>
+                            <p class="text-lg font-semibold text-green-600">Q {{ "{:,.2f}".format(estadisticas.anticipos_mediano) }}</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-600">Costos</p>
-                            <p class="text-lg font-bold text-red-600">Q {{ "{:,.2f}".format(estadisticas.costos_mediano) }}</p>
+                            <p class="text-xs text-gray-500">Costos</p>
+                            <p class="text-lg font-semibold text-red-600">Q {{ "{:,.2f}".format(estadisticas.costos_mediano) }}</p>
                         </div>
                     </div>
                 </div>
@@ -140,64 +163,65 @@
     </div>
 
     <!-- Tabla de pedidos -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="p-6 border-b flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-800">
-                <i class="fas fa-list mr-2"></i>Listado de Pedidos ({{ estadisticas.total_pedidos }})
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wider">
+                Listado de Pedidos ({{ estadisticas.total_pedidos }})
             </h2>
         </div>
         <div class="overflow-x-auto">
             <table class="w-full">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cant.</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Venta</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recargo VISA</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total c/Rec.</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Costo</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilidad</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">%</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cant.</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Anticipo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sesión</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilidad</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     {% for pedido in pedidos %}
                     <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 whitespace-nowrap">{{ pedido.fecha.strftime('%d/%m/%Y') if pedido.fecha else '' }}</td>
-                        <td class="px-4 py-3">{{ pedido.cliente }}</td>
+                        <td class="px-4 py-3 text-sm">{{ pedido.fecha.strftime('%d/%m/%Y') if pedido.fecha else '' }}</td>
+                        <td class="px-4 py-3 text-sm font-medium">{{ pedido.cliente }}</td>
                         <td class="px-4 py-3">
-                            <span class="px-2 py-1 rounded-full text-xs {% if pedido.producto == 'Grande' %}bg-indigo-100 text-indigo-800{% else %}bg-purple-100 text-purple-800{% endif %}">
+                            <span class="px-2 py-1 rounded text-xs {% if pedido.producto == 'Grande' %}bg-gray-800 text-white{% else %}bg-gray-200 text-gray-800{% endif %}">
                                 {{ pedido.producto }}
                             </span>
                         </td>
-                        <td class="px-4 py-3">{{ pedido.cantidad }}</td>
-                        <td class="px-4 py-3">Q {{ "{:,.2f}".format(pedido.total_venta) }}</td>
-                        <td class="px-4 py-3 {% if pedido.recargo_visa > 0 %}text-orange-600{% endif %}">
-                            {% if pedido.recargo_visa > 0 %}Q {{ "{:,.2f}".format(pedido.recargo_visa) }}{% else %}-{% endif %}
+                        <td class="px-4 py-3 text-sm">{{ pedido.cantidad }}</td>
+                        <td class="px-4 py-3 text-sm font-medium">Q {{ "{:,.2f}".format(pedido.total_venta) }}</td>
+                        <td class="px-4 py-3 text-sm text-green-600">Q {{ "{:,.2f}".format(pedido.anticipo) }}</td>
+                        <td class="px-4 py-3 text-sm {% if pedido.saldo_restante > 0 %}text-orange-600{% else %}text-green-600{% endif %}">
+                            Q {{ "{:,.2f}".format(pedido.saldo_restante) }}
                         </td>
-                        <td class="px-4 py-3 font-bold">Q {{ "{:,.2f}".format(pedido.total_con_recargo) }}</td>
-                        <td class="px-4 py-3 text-red-600">Q {{ "{:,.2f}".format(pedido.costo_total) }}</td>
-                        <td class="px-4 py-3 font-bold text-green-600">Q {{ "{:,.2f}".format(pedido.utilidad) }}</td>
-                        <td class="px-4 py-3 text-green-700">{{ "{:.1f}".format(pedido.porcentaje_utilidad) }}%</td>
-                        <td class="px-4 py-3">
-                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" 
-                               class="text-indigo-600 hover:text-indigo-800 mr-3" title="Editar">
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            {{ pedido.fecha_sesion.strftime('%d/%m/%Y') if pedido.fecha_sesion else '-' }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-red-600">Q {{ "{:,.2f}".format(pedido.costo_total) }}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-green-600">Q {{ "{:,.2f}".format(pedido.utilidad) }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="text-gray-600 hover:text-black mr-3">
                                 <i class="fas fa-edit"></i>
                             </a>
                             <a href="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" 
-                               class="text-red-600 hover:text-red-800"
-                               onclick="return confirm('¿Estás seguro de eliminar este pedido?')" title="Eliminar">
+                               class="text-gray-400 hover:text-red-600"
+                               onclick="return confirm('¿Eliminar este pedido?')">
                                 <i class="fas fa-trash"></i>
                             </a>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="11" class="px-4 py-8 text-center text-gray-500">
-                            <i class="fas fa-inbox text-4xl mb-2"></i>
+                        <td colspan="11" class="px-4 py-12 text-center text-gray-400">
+                            <i class="fas fa-inbox text-4xl mb-3"></i>
                             <p>No hay pedidos registrados</p>
                         </td>
                     </tr>
@@ -211,32 +235,32 @@
 
 {% block scripts %}
 <script>
-    const ventasGrande = {{ estadisticas.ventas_grande }};
+    const anticiposGrande = {{ estadisticas.anticipos_grande }};
     const costosGrande = {{ estadisticas.costos_grande }};
-    const ventasMediano = {{ estadisticas.ventas_mediano }};
+    const anticiposMediano = {{ estadisticas.anticipos_mediano }};
     const costosMediano = {{ estadisticas.costos_mediano }};
     
-    const ctx = document.getElementById('chartIngresosVsCostos').getContext('2d');
+    const ctx = document.getElementById('chartAnticiposCostos').getContext('2d');
     new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: ['Cuadros Grande', 'Cuadros Mediano'],
+            labels: ['Grande', 'Mediano'],
             datasets: [
                 {
-                    label: 'Ingresos',
-                    data: [ventasGrande, ventasMediano],
+                    label: 'Anticipos',
+                    data: [anticiposGrande, anticiposMediano],
                     backgroundColor: 'rgba(34, 197, 94, 0.8)',
                     borderColor: 'rgba(34, 197, 94, 1)',
-                    borderWidth: 2,
-                    borderRadius: 8
+                    borderWidth: 1,
+                    borderRadius: 4
                 },
                 {
                     label: 'Costos',
                     data: [costosGrande, costosMediano],
                     backgroundColor: 'rgba(239, 68, 68, 0.8)',
                     borderColor: 'rgba(239, 68, 68, 1)',
-                    borderWidth: 2,
-                    borderRadius: 8
+                    borderWidth: 1,
+                    borderRadius: 4
                 }
             ]
         },
@@ -246,17 +270,7 @@
             plugins: {
                 legend: {
                     position: 'top',
-                    labels: {
-                        padding: 20,
-                        font: { size: 14, weight: 'bold' }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': Q' + context.raw.toLocaleString('es-GT', {minimumFractionDigits: 2});
-                        }
-                    }
+                    labels: { padding: 20, font: { size: 12 } }
                 }
             },
             scales: {
