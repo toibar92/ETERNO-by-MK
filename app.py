@@ -386,7 +386,7 @@ def exportar_excel():
     
     return send_file(filepath, as_attachment=True, download_name=filename)
 
-if __name__ == '__main__':
-    init_db()
-    # Para desarrollo local
-    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+init_db()
+
+   if __name__ == '__main__':
+       app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
