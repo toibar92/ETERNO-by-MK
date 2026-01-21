@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Pedido - Calculadora Eterno{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600">
+            <h2 class="text-2xl font-bold text-white flex items-center">
+                <i class="fas fa-plus-circle mr-2"></i>Registrar Nuevo Pedido
+            </h2>
+        </div>
+
+        <form method="POST" action="{{ url_for('nuevo_pedido') }}" class="p-6 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Fecha -->
+                <div>
+                    <label for="fecha" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-calendar text-indigo-600 mr-1"></i>Fecha del Pedido
+                    </label>
+                    <input type="date" 
+                           id="fecha" 
+                           name="fecha" 
+                           required
+                           value="{{ request.form.fecha or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+
+                <!-- Cliente -->
+                <div>
+                    <label for="cliente" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-user text-indigo-600 mr-1"></i>Nombre del Cliente
+                    </label>
+                    <input type="text" 
+                           id="cliente" 
+                           name="cliente" 
+                           required
+                           value="{{ request.form.cliente or '' }}"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                           placeholder="Nombre completo">
+                </div>
+
+                <!-- Producto -->
+                <div>
+                    <label for="producto" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-image text-indigo-600 mr-1"></i>Producto
+                    </label>
+                    <select id="producto" 
+                            name="producto" 
+                            required
+                            onchange="actualizarPrecio()"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option value="">Selecciona un producto</option>
+                        {% for nombre, config in productos.items() %}
+                        <option value="{{ nombre }}" 
+                                data-precio="{{ config.precio }}"
+                                {% if request.form.producto == nombre %}selected{% endif %}>
+                            {{ nombre }} ({{ config.medidas }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Cantidad -->
+                <div>
+                    <label for="cantidad" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-boxes text-indigo-600 mr-1"></i>Cantidad
+                    </label>
+                    <input type="number" 
+                           id="cantidad" 
+                           name="cantidad" 
+                           min="1"
+                           required
+                           value="{{ request.form.cantidad or '1' }}"
+                           onchange="calcularPreview()"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                </div>
+
+                <!-- Descuento -->
+                <div>
+                    <label for="descuento" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-percentage text-indigo-600 mr-1"></i>Descuento (%)
+                    </label>
+                    <input type="number" 
+                           id="descuento" 
+                           name="descuento" 
+                           min="0"
+                           max="100"
+                           step="0.1"
+                           value="{{ request.form.descuento or '0' }}"
+                           onchange="calcularPreview()"
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                           placeholder="0">
+                </div>
+
+                <!-- Cuotas VISA -->
+                <div>
+                    <label for="cuotas_visa" class="block text-sm font-medium text-gray-700 mb-2">
+                        <i class="fas fa-credit-card text-indigo-600 mr-1"></i>Cuotas VISA (opcional)
+                    </label>
+                    <select id="cuotas_visa" 
+                            name="cuotas_visa"
+                            onchange="calcularPreview()"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                        <option value="0">Sin cuotas</option>
+                        {% for cuotas, recargo in recargos_visa.items() %}
+                        <option value="{{ cuotas }}" 
+                                data-recargo="{{ recargo }}"
+                                {% if request.form.cuotas_visa == cuotas|string %}selected{% endif %}>
+                            {{ cuotas }} cuotas ({{ '{:.1f}'.format(recargo * 100) }}% recargo)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Preview de Cálculos -->
+            <div id="preview" class="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg border-2 border-indigo-200" style="display: none;">
+                <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center">
+                    <i class="fas fa-calculator text-indigo-600 mr-2"></i>Vista Previa de Cálculos
+                </h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">Subtotal</p>
+                        <p id="preview-subtotal" class="text-xl font-bold text-blue-600">Q0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">Total Venta</p>
+                        <p id="preview-total-venta" class="text-xl font-bold text-purple-600">Q0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">Recargo VISA</p>
+                        <p id="preview-recargo" class="text-xl font-bold text-orange-600">Q0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">Total c/Recargo</p>
+                        <p id="preview-total-con-recargo" class="text-xl font-bold text-indigo-600">Q0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">Costo Total</p>
+                        <p id="preview-costo" class="text-xl font-bold text-red-600">Q0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">Utilidad</p>
+                        <p id="preview-utilidad" class="text-xl font-bold text-green-600">Q0.00</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">% Utilidad</p>
+                        <p id="preview-porcentaje" class="text-xl font-bold text-green-700">0.0%</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <p class="text-xs text-gray-600 mb-1">Reserva Costos</p>
+                        <p id="preview-reserva" class="text-xl font-bold text-red-700">Q0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex justify-end space-x-3 pt-4 border-t">
+                <a href="{{ url_for('dashboard') }}" 
+                   class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
+                    <i class="fas fa-times mr-2"></i>Cancelar
+                </a>
+                <button type="submit" 
+                        class="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition shadow-lg">
+                    <i class="fas fa-save mr-2"></i>Guardar Pedido
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const productosConfig = {{ productos | tojson }};
+    
+    function actualizarPrecio() {
+        calcularPreview();
+    }
+    
+    function calcularPreview() {
+        const productoSelect = document.getElementById('producto');
+        const cantidad = parseInt(document.getElementById('cantidad').value) || 0;
+        const descuento = parseFloat(document.getElementById('descuento').value) || 0;
+        const cuotasVisa = parseInt(document.getElementById('cuotas_visa').value) || 0;
+        
+        if (!productoSelect.value || cantidad === 0) {
+            document.getElementById('preview').style.display = 'none';
+            return;
+        }
+        
+        const producto = productoSelect.value;
+        const config = productosConfig[producto];
+        const precio = config.precio;
+        
+        // Calcular costo total
+        const costos = config.costos;
+        const costoUnitario = Object.values(costos).reduce((a, b) => a + b, 0);
+        const costoTotal = costoUnitario * cantidad;
+        
+        // Cálculos
+        const subtotal = precio * cantidad;
+        const totalVenta = subtotal * (1 - descuento / 100);
+        
+        let recargoVisa = 0;
+        if (cuotasVisa > 0) {
+            const cuotasSelect = document.getElementById('cuotas_visa');
+            const selectedOption = cuotasSelect.options[cuotasSelect.selectedIndex];
+            const recargoPorc = parseFloat(selectedOption.dataset.recargo) || 0;
+            recargoVisa = totalVenta * recargoPorc;
+        }
+        
+        const totalConRecargo = totalVenta + recargoVisa;
+        const utilidad = totalConRecargo - costoTotal;
+        const porcentajeUtilidad = totalConRecargo > 0 ? (utilidad / totalConRecargo * 100) : 0;
+        
+        // Mostrar resultados
+        document.getElementById('preview').style.display = 'block';
+        document.getElementById('preview-subtotal').textContent = 'Q' + subtotal.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        document.getElementById('preview-total-venta').textContent = 'Q' + totalVenta.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        document.getElementById('preview-recargo').textContent = 'Q' + recargoVisa.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        document.getElementById('preview-total-con-recargo').textContent = 'Q' + totalConRecargo.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        document.getElementById('preview-costo').textContent = 'Q' + costoTotal.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        document.getElementById('preview-utilidad').textContent = 'Q' + utilidad.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        document.getElementById('preview-porcentaje').textContent = porcentajeUtilidad.toFixed(1) + '%';
+        document.getElementById('preview-reserva').textContent = 'Q' + costoTotal.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+    }
+    
+    // Establecer fecha actual por defecto
+    document.getElementById('fecha').valueAsDate = new Date();
+</script>
+{% endblock %}
