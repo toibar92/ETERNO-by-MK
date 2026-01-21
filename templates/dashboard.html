@@ -4,164 +4,100 @@
 
 {% block content %}
 <div class="space-y-6">
-    <!-- Filtro por fechas -->
+    <!-- Filtro por fechas y Exportar -->
     <div class="bg-white rounded-lg shadow p-6">
         <form method="GET" class="flex flex-wrap items-end gap-4">
             <div>
-                <label class="block text-gray-700 font-medium mb-2">Fecha Inicio</label>
+                <label class="block text-gray-700 font-medium mb-2">
+                    <i class="fas fa-calendar text-indigo-600 mr-1"></i>Fecha Inicio
+                </label>
                 <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"
                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
             </div>
             <div>
-                <label class="block text-gray-700 font-medium mb-2">Fecha Fin</label>
+                <label class="block text-gray-700 font-medium mb-2">
+                    <i class="fas fa-calendar text-indigo-600 mr-1"></i>Fecha Fin
+                </label>
                 <input type="date" name="fecha_fin" value="{{ fecha_fin }}"
                        class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
             </div>
             <button type="submit"
-                    class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
+                    class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center">
                 <i class="fas fa-filter mr-2"></i>Filtrar
             </button>
             <a href="{{ url_for('dashboard') }}"
-               class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition">
+               class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 transition flex items-center">
                 <i class="fas fa-times mr-2"></i>Limpiar
+            </a>
+            <a href="{{ url_for('exportar_excel', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}"
+               class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition flex items-center ml-auto">
+                <i class="fas fa-file-excel mr-2"></i>Exportar Excel
             </a>
         </form>
     </div>
 
     <!-- Resumen de estadísticas -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
             <div class="flex items-center">
                 <div class="p-3 bg-green-100 rounded-full">
                     <i class="fas fa-dollar-sign text-green-600 text-2xl"></i>
                 </div>
                 <div class="ml-4">
-                    <p class="text-gray-500">Total Ventas</p>
+                    <p class="text-gray-500 text-sm">Total Ventas</p>
                     <p class="text-2xl font-bold text-gray-800">Q {{ "{:,.2f}".format(estadisticas.total_ventas) }}</p>
                 </div>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-red-500">
             <div class="flex items-center">
                 <div class="p-3 bg-red-100 rounded-full">
                     <i class="fas fa-receipt text-red-600 text-2xl"></i>
                 </div>
                 <div class="ml-4">
-                    <p class="text-gray-500">Total Costos</p>
+                    <p class="text-gray-500 text-sm">Total Costos</p>
                     <p class="text-2xl font-bold text-gray-800">Q {{ "{:,.2f}".format(estadisticas.total_costos) }}</p>
                 </div>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
             <div class="flex items-center">
                 <div class="p-3 bg-blue-100 rounded-full">
                     <i class="fas fa-chart-line text-blue-600 text-2xl"></i>
                 </div>
                 <div class="ml-4">
-                    <p class="text-gray-500">Utilidad Total</p>
+                    <p class="text-gray-500 text-sm">Utilidad Total</p>
                     <p class="text-2xl font-bold text-gray-800">Q {{ "{:,.2f}".format(estadisticas.total_utilidad) }}</p>
                 </div>
             </div>
         </div>
-        <div class="bg-white rounded-lg shadow p-6">
+        <div class="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
             <div class="flex items-center">
                 <div class="p-3 bg-purple-100 rounded-full">
                     <i class="fas fa-percentage text-purple-600 text-2xl"></i>
                 </div>
                 <div class="ml-4">
-                    <p class="text-gray-500">Margen Promedio</p>
+                    <p class="text-gray-500 text-sm">Margen Promedio</p>
                     <p class="text-2xl font-bold text-gray-800">{{ "{:.1f}".format(estadisticas.margen_promedio) }}%</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Resumen por producto -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">
-                <i class="fas fa-image text-indigo-600 mr-2"></i>Cuadros Grande
-            </h3>
-            <div class="space-y-2">
-                <p class="text-gray-600">Cantidad: <span class="font-bold">{{ estadisticas.pedidos_grande }}</span></p>
+    <!-- Gráfica de Ingresos vs Costos -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <i class="fas fa-chart-bar text-indigo-600 mr-2"></i>Ingresos vs Costos por Producto
+        </h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="h-80">
+                <canvas id="chartIngresosVsCostos"></canvas>
             </div>
-        </div>
-        <div class="bg-white rounded-lg shadow p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">
-                <i class="fas fa-image text-purple-600 mr-2"></i>Cuadros Mediano
-            </h3>
-            <div class="space-y-2">
-                <p class="text-gray-600">Cantidad: <span class="font-bold">{{ estadisticas.pedidos_mediano }}</span></p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Tabla de pedidos -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="p-6 border-b flex justify-between items-center">
-            <h2 class="text-xl font-bold text-gray-800">
-                <i class="fas fa-list mr-2"></i>Listado de Pedidos ({{ estadisticas.total_pedidos }})
-            </h2>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cant.</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Venta</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Recargo VISA</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total c/Rec.</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Costo</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Utilidad</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">%</th>
-                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-200">
-                    {% for pedido in pedidos %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-4 py-3 whitespace-nowrap">{{ pedido.fecha.strftime('%d/%m/%Y') if pedido.fecha else '' }}</td>
-                        <td class="px-4 py-3">{{ pedido.cliente }}</td>
-                        <td class="px-4 py-3">
-                            <span class="px-2 py-1 rounded-full text-xs {% if pedido.producto == 'Grande' %}bg-indigo-100 text-indigo-800{% else %}bg-purple-100 text-purple-800{% endif %}">
-                                {{ pedido.producto }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3">{{ pedido.cantidad }}</td>
-                        <td class="px-4 py-3">Q {{ "{:,.2f}".format(pedido.total_venta) }}</td>
-                        <td class="px-4 py-3 {% if pedido.recargo_visa > 0 %}text-orange-600{% endif %}">
-                            {% if pedido.recargo_visa > 0 %}Q {{ "{:,.2f}".format(pedido.recargo_visa) }}{% else %}-{% endif %}
-                        </td>
-                        <td class="px-4 py-3 font-bold">Q {{ "{:,.2f}".format(pedido.total_con_recargo) }}</td>
-                        <td class="px-4 py-3 text-red-600">Q {{ "{:,.2f}".format(pedido.costo_total) }}</td>
-                        <td class="px-4 py-3 font-bold text-green-600">Q {{ "{:,.2f}".format(pedido.utilidad) }}</td>
-                        <td class="px-4 py-3 text-green-700">{{ "{:.1f}".format(pedido.porcentaje_utilidad) }}%</td>
-                        <td class="px-4 py-3">
-                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" 
-                               class="text-indigo-600 hover:text-indigo-800 mr-3">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <a href="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" 
-                               class="text-red-600 hover:text-red-800"
-                               onclick="return confirm('¿Estás seguro de eliminar este pedido?')">
-                                <i class="fas fa-trash"></i>
-                            </a>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="11" class="px-4 py-8 text-center text-gray-500">
-                            <i class="fas fa-inbox text-4xl mb-2"></i>
-                            <p>No hay pedidos registrados</p>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-{% endblock %}
+            <div class="space-y-4">
+                <div class="bg-gradient-to-r from-indigo-50 to-indigo-100 p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-indigo-800">
+                            <i class="fas fa-image mr-2"></i>Cuadros Grande
+                        </h4>
+                        <span class="bg-indigo-200 text-indigo-800 px-2 py-1 rounded text-sm">
+                            {{ estadisticas.
