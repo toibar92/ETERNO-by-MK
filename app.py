@@ -1,18 +1,18 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, Response
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime, timedelta
+from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+import csv
+import io
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'eterno_calculadora_secret_key_2026')
 
-# Configuración de la base de datos
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# Configuración de productos
 PRODUCTOS_CONFIG = {
     'Grande': {
         'medidas': '94 x 152 cms',
@@ -56,7 +56,6 @@ def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Tabla de usuarios
     cur.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id SERIAL PRIMARY KEY,
@@ -69,7 +68,6 @@ def init_db():
         )
     ''')
     
-    # Tabla de pedidos
     cur.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id SERIAL PRIMARY KEY,
@@ -85,7 +83,6 @@ def init_db():
         )
     ''')
     
-    # Crear usuario admin por defecto si no existe
     cur.execute("SELECT * FROM usuarios WHERE username = 'admin'")
     if not cur.fetchone():
         hashed_password = generate_password_hash('eterno2026')
@@ -98,7 +95,6 @@ def init_db():
     cur.close()
     conn.close()
 
-# Inicializar base de datos al arrancar
 try:
     init_db()
 except Exception as e:
@@ -133,7 +129,6 @@ def calcular_totales(producto, cantidad, descuento=0, cuotas_visa=0):
         'reserva_costos': costo_total
     }
 
-# Decorador para requerir login
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -142,14 +137,13 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# Decorador para requerir admin
 def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
             return redirect(url_for('login'))
         if session.get('rol') != 'admin':
-            flash('No tienes permisos para acceder a esta sección', 'error')
+            flash('No tienes permisos', 'error')
             return redirect(url_for('dashboard'))
         return f(*args, **kwargs)
     return decorated_function
@@ -192,14 +186,12 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    # Obtener fechas del filtro
     fecha_inicio = request.args.get('fecha_inicio', '')
     fecha_fin = request.args.get('fecha_fin', '')
     
     conn = get_db_connection()
     cur = conn.cursor()
     
-    # Construir query con filtros
     query = 'SELECT * FROM pedidos'
     params = []
     
@@ -220,12 +212,15 @@ def dashboard():
     cur.close()
     conn.close()
     
-    # Calcular estadísticas
     total_ventas = 0
     total_costos = 0
     total_utilidad = 0
     pedidos_grande = 0
     pedidos_mediano = 0
+    ventas_grande = 0
+    ventas_mediano = 0
+    costos_grande = 0
+    costos_mediano = 0
     
     pedidos_procesados = []
     for pedido in pedidos:
@@ -243,8 +238,6 @@ def dashboard():
                 'cliente': pedido['cliente'],
                 'producto': pedido['producto'],
                 'cantidad': pedido['cantidad'],
-                'descuento': float(pedido['descuento']) if pedido['descuento'] else 0,
-                'cuotas_visa': pedido['cuotas_visa'] if pedido['cuotas_visa'] else 0,
                 **totales
             })
             
@@ -254,8 +247,12 @@ def dashboard():
             
             if pedido['producto'] == 'Grande':
                 pedidos_grande += pedido['cantidad']
+                ventas_grande += totales['total_con_recargo']
+                costos_grande += totales['costo_total']
             else:
                 pedidos_mediano += pedido['cantidad']
+                ventas_mediano += totales['total_con_recargo']
+                costos_mediano += totales['costo_total']
         except:
             continue
     
@@ -268,7 +265,11 @@ def dashboard():
         'margen_promedio': margen_promedio,
         'total_pedidos': len(pedidos_procesados),
         'pedidos_grande': pedidos_grande,
-        'pedidos_mediano': pedidos_mediano
+        'pedidos_mediano': pedidos_mediano,
+        'ventas_grande': ventas_grande,
+        'ventas_mediano': ventas_mediano,
+        'costos_grande': costos_grande,
+        'costos_mediano': costos_mediano
     }
     
     return render_template('dashboard.html', 
@@ -277,6 +278,7 @@ def dashboard():
                          productos_config=PRODUCTOS_CONFIG,
                          fecha_inicio=fecha_inicio,
                          fecha_fin=fecha_fin)
+
 @app.route('/exportar-excel')
 @login_required
 def exportar_excel():
@@ -307,7 +309,6 @@ def exportar_excel():
     
     output = io.StringIO()
     writer = csv.writer(output)
-    
     writer.writerow(['Fecha', 'Cliente', 'Producto', 'Cantidad', 'Total Venta', 'Recargo VISA', 'Total', 'Costo', 'Utilidad'])
     
     for pedido in pedidos:
@@ -340,6 +341,7 @@ def exportar_excel():
         mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename={filename}'}
     )
+
 @app.route('/nuevo-pedido', methods=['GET', 'POST'])
 @login_required
 def nuevo_pedido():
@@ -366,9 +368,7 @@ def nuevo_pedido():
         flash('Pedido registrado exitosamente', 'success')
         return redirect(url_for('dashboard'))
     
-    return render_template('nuevo_pedido.html', 
-                         productos=PRODUCTOS_CONFIG,
-                         recargos_visa=RECARGOS_VISA)
+    return render_template('nuevo_pedido.html', productos=PRODUCTOS_CONFIG, recargos_visa=RECARGOS_VISA)
 
 @app.route('/editar-pedido/<int:pedido_id>', methods=['GET', 'POST'])
 @login_required
@@ -383,19 +383,16 @@ def editar_pedido(pedido_id):
         cantidad = int(request.form['cantidad'])
         descuento = float(request.form.get('descuento', 0)) / 100
         cuotas_visa = int(request.form.get('cuotas_visa', 0))
-        
         precio_unitario = PRODUCTOS_CONFIG[producto]['precio']
         
         cur.execute('''
-            UPDATE pedidos 
-            SET fecha=%s, cliente=%s, producto=%s, cantidad=%s, precio_unitario=%s, descuento=%s, cuotas_visa=%s
-            WHERE id=%s
+            UPDATE pedidos SET fecha=%s, cliente=%s, producto=%s, cantidad=%s, precio_unitario=%s, descuento=%s, cuotas_visa=%s WHERE id=%s
         ''', (fecha, cliente, producto, cantidad, precio_unitario, descuento, cuotas_visa, pedido_id))
         conn.commit()
         cur.close()
         conn.close()
         
-        flash('Pedido actualizado exitosamente', 'success')
+        flash('Pedido actualizado', 'success')
         return redirect(url_for('dashboard'))
     
     cur.execute('SELECT * FROM pedidos WHERE id = %s', (pedido_id,))
@@ -403,14 +400,7 @@ def editar_pedido(pedido_id):
     cur.close()
     conn.close()
     
-    if not pedido:
-        flash('Pedido no encontrado', 'error')
-        return redirect(url_for('dashboard'))
-    
-    return render_template('editar_pedido.html', 
-                         pedido=pedido,
-                         productos=PRODUCTOS_CONFIG,
-                         recargos_visa=RECARGOS_VISA)
+    return render_template('editar_pedido.html', pedido=pedido, productos=PRODUCTOS_CONFIG, recargos_visa=RECARGOS_VISA)
 
 @app.route('/eliminar-pedido/<int:pedido_id>')
 @login_required
@@ -421,11 +411,8 @@ def eliminar_pedido(pedido_id):
     conn.commit()
     cur.close()
     conn.close()
-    
     flash('Pedido eliminado', 'success')
     return redirect(url_for('dashboard'))
-
-# ==================== GESTIÓN DE USUARIOS ====================
 
 @app.route('/usuarios')
 @admin_required
@@ -436,7 +423,6 @@ def usuarios():
     users = cur.fetchall()
     cur.close()
     conn.close()
-    
     return render_template('usuarios.html', usuarios=users)
 
 @app.route('/usuarios/nuevo', methods=['GET', 'POST'])
@@ -447,24 +433,19 @@ def nuevo_usuario():
         password = request.form['password']
         nombre = request.form['nombre']
         rol = request.form.get('rol', 'usuario')
-        
         hashed_password = generate_password_hash(password)
         
         conn = get_db_connection()
         cur = conn.cursor()
         try:
-            cur.execute('''
-                INSERT INTO usuarios (username, password, nombre, rol)
-                VALUES (%s, %s, %s, %s)
-            ''', (username, hashed_password, nombre, rol))
+            cur.execute('INSERT INTO usuarios (username, password, nombre, rol) VALUES (%s, %s, %s, %s)',
+                       (username, hashed_password, nombre, rol))
             conn.commit()
-            flash('Usuario creado exitosamente', 'success')
-        except psycopg2.IntegrityError:
-            conn.rollback()
-            flash('El nombre de usuario ya existe', 'error')
+            flash('Usuario creado', 'success')
+        except:
+            flash('El usuario ya existe', 'error')
         cur.close()
         conn.close()
-        
         return redirect(url_for('usuarios'))
     
     return render_template('nuevo_usuario.html')
@@ -479,14 +460,10 @@ def editar_usuario(id):
         nombre = request.form['nombre']
         rol = request.form.get('rol', 'usuario')
         activo = 'activo' in request.form
-        
-        cur.execute('''
-            UPDATE usuarios SET nombre=%s, rol=%s, activo=%s WHERE id=%s
-        ''', (nombre, rol, activo, id))
+        cur.execute('UPDATE usuarios SET nombre=%s, rol=%s, activo=%s WHERE id=%s', (nombre, rol, activo, id))
         conn.commit()
         cur.close()
         conn.close()
-        
         flash('Usuario actualizado', 'success')
         return redirect(url_for('usuarios'))
     
@@ -494,23 +471,20 @@ def editar_usuario(id):
     usuario = cur.fetchone()
     cur.close()
     conn.close()
-    
     return render_template('editar_usuario.html', usuario=usuario)
 
 @app.route('/usuarios/eliminar/<int:id>')
 @admin_required
 def eliminar_usuario(id):
     if id == session['user_id']:
-        flash('No puedes eliminar tu propio usuario', 'error')
+        flash('No puedes eliminarte', 'error')
         return redirect(url_for('usuarios'))
-    
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute('DELETE FROM usuarios WHERE id = %s', (id,))
     conn.commit()
     cur.close()
     conn.close()
-    
     flash('Usuario eliminado', 'success')
     return redirect(url_for('usuarios'))
 
@@ -523,7 +497,7 @@ def cambiar_contrasena():
         confirmar = request.form['password_confirmar']
         
         if nueva != confirmar:
-            flash('Las contraseñas nuevas no coinciden', 'error')
+            flash('Las contraseñas no coinciden', 'error')
             return redirect(url_for('cambiar_contrasena'))
         
         conn = get_db_connection()
@@ -532,7 +506,7 @@ def cambiar_contrasena():
         user = cur.fetchone()
         
         if not check_password_hash(user['password'], actual):
-            flash('La contraseña actual es incorrecta', 'error')
+            flash('Contraseña actual incorrecta', 'error')
             cur.close()
             conn.close()
             return redirect(url_for('cambiar_contrasena'))
@@ -542,8 +516,7 @@ def cambiar_contrasena():
         conn.commit()
         cur.close()
         conn.close()
-        
-        flash('Contraseña actualizada exitosamente', 'success')
+        flash('Contraseña actualizada', 'success')
         return redirect(url_for('dashboard'))
     
     return render_template('cambiar_contrasena.html')
