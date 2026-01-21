@@ -3,70 +3,48 @@
 {% block title %}Editar Usuario - Calculadora Eterno{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-        <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600">
-            <h2 class="text-2xl font-bold text-white flex items-center">
-                <i class="fas fa-user-edit mr-2"></i>Editar Usuario: {{ usuario.username }}
-            </h2>
-        </div>
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-6">
+            <i class="fas fa-user-edit mr-2"></i>Editar Usuario
+        </h2>
 
-        <form method="POST" action="{{ url_for('editar_usuario', user_id=usuario.id) }}" class="p-6 space-y-6">
+        <form method="POST" class="space-y-6">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-user text-indigo-600 mr-1"></i>Nombre de Usuario
-                </label>
-                <input type="text" 
-                       value="{{ usuario.username }}"
-                       disabled
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-500">
-                <p class="text-xs text-gray-500 mt-1">El nombre de usuario no se puede cambiar.</p>
+                <label class="block text-gray-700 font-medium mb-2">Nombre de Usuario</label>
+                <input type="text" value="{{ usuario.username }}" disabled
+                       class="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500">
+                <p class="text-sm text-gray-500 mt-1">El nombre de usuario no se puede cambiar</p>
             </div>
 
             <div>
-                <label for="nombre" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-id-card text-indigo-600 mr-1"></i>Nombre Completo
-                </label>
-                <input type="text" 
-                       id="nombre" 
-                       name="nombre" 
-                       required
-                       value="{{ usuario.nombre }}"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                <label class="block text-gray-700 font-medium mb-2">Nombre Completo</label>
+                <input type="text" name="nombre" required value="{{ usuario.nombre }}"
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
             </div>
 
             <div>
-                <label for="new_password" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-lock text-indigo-600 mr-1"></i>Nueva Contraseña (opcional)
-                </label>
-                <input type="password" 
-                       id="new_password" 
-                       name="new_password" 
-                       minlength="6"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                       placeholder="Dejar vacío para no cambiar">
-                <p class="text-xs text-gray-500 mt-1">Solo completa si deseas cambiar la contraseña.</p>
+                <label class="block text-gray-700 font-medium mb-2">Rol</label>
+                <select name="rol"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                    <option value="usuario" {% if usuario.rol == 'usuario' %}selected{% endif %}>Usuario</option>
+                    <option value="admin" {% if usuario.rol == 'admin' %}selected{% endif %}>Administrador</option>
+                </select>
             </div>
 
             <div class="flex items-center">
-                <input type="checkbox" 
-                       id="es_admin" 
-                       name="es_admin"
-                       {% if usuario.es_admin %}checked{% endif %}
+                <input type="checkbox" name="activo" id="activo" {% if usuario.activo %}checked{% endif %}
                        class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
-                <label for="es_admin" class="ml-2 block text-sm text-gray-700">
-                    <i class="fas fa-crown text-yellow-500 mr-1"></i>Es Administrador
-                </label>
+                <label for="activo" class="ml-2 block text-gray-700">Usuario activo</label>
             </div>
 
-            <!-- Botones -->
-            <div class="flex justify-end space-x-3 pt-4 border-t">
-                <a href="{{ url_for('lista_usuarios') }}" 
-                   class="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition">
-                    <i class="fas fa-times mr-2"></i>Cancelar
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('usuarios') }}"
+                   class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Cancelar
                 </a>
-                <button type="submit" 
-                        class="px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition shadow-lg">
+                <button type="submit"
+                        class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
                     <i class="fas fa-save mr-2"></i>Guardar Cambios
                 </button>
             </div>
