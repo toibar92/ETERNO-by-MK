@@ -1,47 +1,50 @@
 {% extends "base.html" %}
 
-{% block title %}Cambiar Contraseña - Calculadora Eterno{% endblock %}
+{% block title %}Cambiar Contraseña - ETERNO by MK{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto">
-    <div class="bg-white rounded-lg shadow p-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-6">
-            <i class="fas fa-key mr-2"></i>Cambiar Contraseña
-        </h2>
-
-        <form method="POST" class="space-y-6">
-            <div>
-                <label class="block text-gray-700 font-medium mb-2">Contraseña Actual</label>
-                <input type="password" name="password_actual" required
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                       placeholder="••••••••">
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-key"></i> Cambiar Contraseña
+                </h5>
             </div>
-
-            <div>
-                <label class="block text-gray-700 font-medium mb-2">Nueva Contraseña</label>
-                <input type="password" name="password_nueva" required
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                       placeholder="••••••••">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="password_actual" class="form-label">Contraseña Actual *</label>
+                        <input type="password" class="form-control" id="password_actual" name="password_actual" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password_nueva" class="form-label">Nueva Contraseña *</label>
+                        <input type="password" class="form-control" id="password_nueva" name="password_nueva" required>
+                        <small class="text-muted">Mínimo 6 caracteres</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password_confirmar" class="form-label">Confirmar Nueva Contraseña *</label>
+                        <input type="password" class="form-control" id="password_confirmar" name="password_confirmar" required>
+                    </div>
+                    
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Asegúrate de recordar tu nueva contraseña. Se cerrará tu sesión después del cambio.
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Cambiar Contraseña
+                        </button>
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                            <i class="bi bi-x-circle"></i> Cancelar
+                        </a>
+                    </div>
+                </form>
             </div>
-
-            <div>
-                <label class="block text-gray-700 font-medium mb-2">Confirmar Nueva Contraseña</label>
-                <input type="password" name="password_confirmar" required
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                       placeholder="••••••••">
-            </div>
-
-            <div class="flex justify-end space-x-4">
-                <a href="{{ url_for('dashboard') }}"
-                   class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
-                    Cancelar
-                </a>
-                <button type="submit"
-                        class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition">
-                    <i class="fas fa-save mr-2"></i>Cambiar Contraseña
-                </button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 {% endblock %}
