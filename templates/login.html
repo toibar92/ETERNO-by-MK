@@ -1,84 +1,95 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ETERNO by MK - Iniciar Sesión</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Montserrat', sans-serif; }
-    </style>
-</head>
-<body class="min-h-screen bg-white flex">
-    
-    <!-- Lado izquierdo - Branding -->
-    <div class="hidden lg:flex lg:w-1/2 bg-black items-center justify-center relative overflow-hidden">
-        <div class="text-center z-10">
-            <img src="/static/images/logo.png" alt="Eterno by MK" class="h-24 mx-auto mb-6">
-            <div class="mt-6 w-16 h-px bg-white mx-auto opacity-30"></div>
-            <p class="text-gray-500 text-xs mt-6 tracking-[0.2em] uppercase">Momentos que perduran</p>
-        </div>
-        <!-- Patrón decorativo sutil -->
-        <div class="absolute inset-0 opacity-5">
-            <div class="absolute top-20 left-20 w-40 h-40 border border-white"></div>
-            <div class="absolute bottom-20 right-20 w-60 h-60 border border-white"></div>
-            <div class="absolute top-1/2 left-1/3 w-32 h-32 border border-white"></div>
-        </div>
-    </div>
-    
-    <!-- Lado derecho - Formulario -->
-    <div class="w-full lg:w-1/2 flex items-center justify-center px-8 py-12">
-        <div class="w-full max-w-md">
-            
-            <!-- Logo móvil -->
-            <div class="lg:hidden text-center mb-12">
-                <img src="/static/images/logo.png" alt="Eterno by MK" class="h-16 mx-auto invert">
+{% extends "base.html" %}
+
+{% block title %}Saldos Pendientes - ETERNO by MK{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Saldos Pendientes de Pago
+                </h5>
+                <span class="badge bg-warning">{{ pedidos|length }} pendiente(s)</span>
             </div>
-            
-            <div class="mb-10">
-                <h2 class="text-2xl font-light text-black tracking-wide">Bienvenido</h2>
-                <p class="text-gray-400 text-sm mt-2">Ingresa tus credenciales para continuar</p>
-            </div>
-            
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                    <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm">
-                        {{ message }}
-                    </div>
-                    {% endfor %}
+            <div class="card-body">
+                {% if pedidos %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Producto</th>
+                                <th class="text-end">Saldo</th>
+                                <th>Fecha Sesión</th>
+                                <th>Método Pago</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pedido in pedidos %}
+                            <tr>
+                                <td><strong>{{ pedido.cliente }}</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if pedido.producto == 'Grande' %}primary{% else %}info{% endif %}">
+                                        {{ pedido.producto }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-warning">Q{{ "%.2f"|format(pedido.saldo_restante) }}</strong>
+                                </td>
+                                <td>
+                                    {% if pedido.fecha_sesion %}
+                                        <i class="bi bi-calendar"></i> {{ pedido.fecha_sesion.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('marcar_saldo_pagado', pedido_id=pedido.id) }}" class="d-inline">
+                                        <select name="metodo_pago_saldo" class="form-select form-select-sm d-inline-block w-auto" required>
+                                            {% for metodo in metodos_pago %}
+                                            <option value="{{ metodo }}" {% if pedido.metodo_pago_saldo == metodo %}selected{% endif %}>
+                                                {{ metodo }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        
+                                        <select name="cuotas_visa_saldo" class="form-select form-select-sm d-inline-block w-auto ms-1">
+                                            <option value="0">Sin cuotas</option>
+                                            {% for cuotas, porcentaje in costos_visa.items() %}
+                                            <option value="{{ cuotas }}" {% if pedido.cuotas_visa_saldo == cuotas %}selected{% endif %}>
+                                                {{ cuotas }} cuotas ({{ "%.1f"|format(porcentaje * 100) }}%)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                </td>
+                                <td class="text-center">
+                                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('¿Marcar este saldo como pagado?')">
+                                            <i class="bi bi-check-circle"></i> Marcar Pagado
+                                        </button>
+                                    </form>
+                                    <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="btn btn-primary btn-sm ms-1">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3">¡Excelente!</h4>
+                    <p class="text-muted">No hay saldos pendientes de pago</p>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                        <i class="bi bi-speedometer2"></i> Volver al Dashboard
+                    </a>
+                </div>
                 {% endif %}
-            {% endwith %}
-            
-            <form method="POST" class="space-y-6">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Usuario</label>
-                    <input type="text" name="username" required
-                           class="w-full px-0 py-3 border-0 border-b-2 border-gray-200 focus:border-black focus:ring-0 bg-transparent text-black placeholder-gray-300 transition-colors"
-                           placeholder="Ingresa tu usuario">
-                </div>
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Contraseña</label>
-                    <input type="password" name="password" required
-                           class="w-full px-0 py-3 border-0 border-b-2 border-gray-200 focus:border-black focus:ring-0 bg-transparent text-black placeholder-gray-300 transition-colors"
-                           placeholder="Ingresa tu contraseña">
-                </div>
-                
-                <div class="pt-6">
-                    <button type="submit"
-                            class="w-full bg-black text-white py-4 text-sm uppercase tracking-widest font-medium hover:bg-gray-900 transition-colors">
-                        Iniciar Sesión
-                    </button>
-                </div>
-            </form>
-            
-            <div class="mt-12 text-center">
-                <p class="text-gray-300 text-xs tracking-wider">&copy; 2026 ETERNO by MK</p>
             </div>
         </div>
     </div>
-    
-</body>
-</html>
+</div>
+{% endblock %}
