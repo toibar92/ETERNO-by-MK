@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Saldos Pendientes - ETERNO by MK{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> Saldos Pendientes de Pago
+                </h5>
+                <span class="badge bg-warning">{{ pedidos|length }} pendiente(s)</span>
+            </div>
+            <div class="card-body">
+                {% if pedidos %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped align-middle">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Producto</th>
+                                <th class="text-end">Saldo</th>
+                                <th>Fecha Sesión</th>
+                                <th>Método Pago</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pedido in pedidos %}
+                            <tr>
+                                <td><strong>{{ pedido.cliente }}</strong></td>
+                                <td>
+                                    <span class="badge bg-{% if pedido.producto == 'Grande' %}primary{% else %}info{% endif %}">
+                                        {{ pedido.producto }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <strong class="text-warning">Q{{ "%.2f"|format(pedido.saldo_restante) }}</strong>
+                                </td>
+                                <td>
+                                    {% if pedido.fecha_sesion %}
+                                        <i class="bi bi-calendar"></i> {{ pedido.fecha_sesion.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        <span class="text-muted">Sin fecha</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('marcar_saldo_pagado', pedido_id=pedido.id) }}" class="d-inline">
+                                        <select name="metodo_pago_saldo" class="form-select form-select-sm d-inline-block w-auto" required>
+                                            {% for metodo in metodos_pago %}
+                                            <option value="{{ metodo }}" {% if pedido.metodo_pago_saldo == metodo %}selected{% endif %}>
+                                                {{ metodo }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        
+                                        <select name="cuotas_visa_saldo" class="form-select form-select-sm d-inline-block w-auto ms-1">
+                                            <option value="0">Sin cuotas</option>
+                                            {% for cuotas, porcentaje in costos_visa.items() %}
+                                            <option value="{{ cuotas }}" {% if pedido.cuotas_visa_saldo == cuotas %}selected{% endif %}>
+                                                {{ cuotas }} cuotas ({{ "%.1f"|format(porcentaje * 100) }}%)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                </td>
+                                <td class="text-center">
+                                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('¿Marcar este saldo como pagado?')">
+                                            <i class="bi bi-check-circle"></i> Marcar Pagado
+                                        </button>
+                                    </form>
+                                    <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="btn btn-primary btn-sm ms-1">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3">¡Excelente!</h4>
+                    <p class="text-muted">No hay saldos pendientes de pago</p>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+                        <i class="bi bi-speedometer2"></i> Volver al Dashboard
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
