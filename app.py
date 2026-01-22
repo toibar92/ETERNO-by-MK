@@ -213,7 +213,17 @@ def admin_required(f):
         session.modified = True
         return f(*args, **kwargs)
     return decorated_function
+@app.before_request
+def require_login():
+    allowed_routes = ['login', 'static']
+    if request.endpoint not in allowed_routes and 'user_id' not in session:
+        return redirect(url_for('login'))
 
+@app.route('/')
+def index():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
 @app.route('/')
 def index():
     if 'user_id' in session:
