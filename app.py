@@ -1,16 +1,88 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, Response, send_file
+"""
+ETERNO by MK - Sistema Seguro de Gestión de Pedidos
+Versión 2.0 con Seguridad Completa
+"""
+
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import io
+import secrets
+import re
+
+# Imports de seguridad (con manejo de errores si no están instalados)
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    LIMITER_AVAILABLE = True
+except ImportError:
+    LIMITER_AVAILABLE = False
+    print("⚠️  flask-limiter no instalado - ejecuta: pip install flask-limiter")
+
+try:
+    from flask_talisman import Talisman
+    TALISMAN_AVAILABLE = True
+except ImportError:
+    TALISMAN_AVAILABLE = False
+    print("⚠️  flask-talisman no instalado - ejecuta: pip install flask-talisman")
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'eterno_calculadora_secret_key_2026')
+
+# ============================================================================
+# CONFIGURACIÓN DE SEGURIDAD
+# ============================================================================
+
+# Secret key segura (usa variable de entorno en producción)
+app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# Configuración de sesiones seguras
+app.config.update(
+    SESSION_COOKIE_SECURE=True,           # Solo HTTPS
+    SESSION_COOKIE_HTTPONLY=True,         # No accesible por JavaScript  
+    SESSION_COOKIE_SAMESITE='Lax',        # Protección CSRF
+    PERMANENT_SESSION_LIFETIME=timedelta(minutes=30),  # Timeout 30 min
+    MAX_CONTENT_LENGTH=16 * 1024 * 1024   # Límite 16MB
+)
+
+# Rate Limiting - Protección contra fuerza bruta
+if LIMITER_AVAILABLE:
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=["200 per day", "50 per hour"],
+        storage_uri="memory://"
+    )
+else:
+    # Decorador dummy si limiter no está disponible
+    class DummyLimiter:
+        def limit(self, *args, **kwargs):
+            def decorator(f):
+                return f
+            return decorator
+    limiter = DummyLimiter()
+
+# Security Headers (solo en producción con HTTPS)
+if TALISMAN_AVAILABLE and os.environ.get('RENDER'):
+    talisman = Talisman(
+        app,
+        force_https=True,
+        strict_transport_security=True,
+        content_security_policy={
+            'default-src': "'self'",
+            'script-src': ["'self'", "'unsafe-inline'"],
+            'style-src': ["'self'", "'unsafe-inline'"],
+        }
+    )
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
+
+# ============================================================================
+# CONFIGURACIÓN DE PRODUCTOS (sin cambios)
+# ============================================================================
 
 PRODUCTOS_CONFIG = {
     'Grande': {
@@ -49,6 +121,96 @@ COSTOS_VISA = {
 
 METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta débito']
 
+# ============================================================================
+# FUNCIONES DE SEGURIDAD (NUEVAS)
+# ============================================================================
+
+def sanitize_input(text, max_length=255):
+    """Sanitiza inputs del usuario"""
+    if not text:
+        return ""
+    text = str(text).strip()[:max_length]
+    text = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
+    return text
+
+def get_client_ip():
+    """Obtiene la IP real del cliente"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    return request.remote_addr or '0.0.0.0'
+
+def get_user_agent():
+    """Obtiene el User-Agent"""
+    return request.headers.get('User-Agent', 'Unknown')[:255]
+
+def log_security_event(event_type, user_id=None, details=""):
+    """Registra eventos de seguridad"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO security_log (event_type, user_id, ip_address, details, timestamp)
+            VALUES (%s, %s, %s, %s, NOW())
+        ''', (event_type, user_id, get_client_ip(), details))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except:
+        pass
+
+def check_login_attempts(username, ip_address):
+    """Verifica intentos de login fallidos - Rate limiting"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        cur.execute('''
+            SELECT COUNT(*) as attempts FROM login_attempts 
+            WHERE username = %s AND success = FALSE 
+            AND attempt_time > NOW() - INTERVAL '15 minutes'
+        ''', (username,))
+        user_attempts = cur.fetchone()['attempts']
+        
+        cur.execute('''
+            SELECT COUNT(*) as attempts FROM login_attempts 
+            WHERE ip_address = %s AND success = FALSE 
+            AND attempt_time > NOW() - INTERVAL '15 minutes'
+        ''', (ip_address,))
+        ip_attempts = cur.fetchone()['attempts']
+        
+        cur.close()
+        conn.close()
+        
+        if user_attempts >= 5:
+            return False, "Demasiados intentos fallidos. Intenta en 15 minutos."
+        if ip_attempts >= 10:
+            return False, "Demasiados intentos desde esta red. Intenta en 15 minutos."
+        
+        return True, ""
+    except:
+        return True, ""
+
+def log_login_attempt(username, ip_address, success):
+    """Registra intento de login"""
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''
+            INSERT INTO login_attempts (username, ip_address, success, attempt_time)
+            VALUES (%s, %s, %s, NOW())
+        ''', (username, ip_address, success))
+        conn.commit()
+        cur.execute("DELETE FROM login_attempts WHERE attempt_time < NOW() - INTERVAL '7 days'")
+        conn.commit()
+        cur.close()
+        conn.close()
+    except:
+        pass
+
+# ============================================================================
+# FUNCIONES DE BASE DE DATOS
+# ============================================================================
+
 def get_db_connection():
     conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
     return conn
@@ -57,6 +219,7 @@ def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
     
+    # Tabla usuarios
     cur.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id SERIAL PRIMARY KEY,
@@ -69,6 +232,7 @@ def init_db():
         )
     ''')
     
+    # Tabla pedidos
     cur.execute('''
         CREATE TABLE IF NOT EXISTS pedidos (
             id SERIAL PRIMARY KEY,
@@ -89,6 +253,37 @@ def init_db():
         )
     ''')
     
+    # NUEVAS TABLAS DE SEGURIDAD
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(50) NOT NULL,
+            ip_address VARCHAR(45) NOT NULL,
+            success BOOLEAN NOT NULL,
+            attempt_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS security_log (
+            id SERIAL PRIMARY KEY,
+            event_type VARCHAR(50) NOT NULL,
+            user_id INTEGER REFERENCES usuarios(id),
+            ip_address VARCHAR(45),
+            details TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Índices para performance
+    try:
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_login_attempts_username ON login_attempts(username, attempt_time)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address, attempt_time)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_security_log_timestamp ON security_log(timestamp DESC)')
+    except:
+        pass
+    
+    # Columnas adicionales en pedidos
     try:
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS anticipo DECIMAL(10,2) DEFAULT 0')
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_pago_anticipo VARCHAR(50)')
@@ -99,13 +294,15 @@ def init_db():
     except:
         pass
     
+    # Usuario admin
     cur.execute("SELECT * FROM usuarios WHERE username = 'admin'")
     if not cur.fetchone():
-        hashed_password = generate_password_hash('eterno2026')
+        hashed_password = generate_password_hash('Eterno2026!')
         cur.execute('''
             INSERT INTO usuarios (username, password, nombre, rol)
             VALUES (%s, %s, %s, %s)
         ''', ('admin', hashed_password, 'Administrador', 'admin'))
+        print("✓ Usuario admin creado - Password: Eterno2026! (CAMBIAR INMEDIATAMENTE)")
     
     conn.commit()
     cur.close()
@@ -113,8 +310,13 @@ def init_db():
 
 try:
     init_db()
+    print("✓ Base de datos inicializada")
 except Exception as e:
     print(f"Error inicializando DB: {e}")
+
+# ============================================================================
+# FUNCIONES DE CÁLCULO (sin cambios)
+# ============================================================================
 
 def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_anticipo=0, cuotas_visa_saldo=0):
     config = PRODUCTOS_CONFIG[producto]
@@ -157,11 +359,35 @@ def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_an
         'disponible_anticipo': disponible_anticipo
     }
 
+# ============================================================================
+# DECORADORES (MEJORADOS CON TIMEOUT)
+# ============================================================================
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            flash('Debes iniciar sesión', 'warning')
             return redirect(url_for('login'))
+        
+        # Verificar timeout de sesión (30 minutos)
+        if 'last_activity' in session:
+            try:
+                last_activity = datetime.fromisoformat(session['last_activity'])
+                if datetime.now() - last_activity > timedelta(minutes=30):
+                    user_id = session.get('user_id')
+                    session.clear()
+                    log_security_event('session_timeout', user_id)
+                    flash('Tu sesión ha expirado por inactividad', 'warning')
+                    return redirect(url_for('login'))
+            except:
+                session.clear()
+                return redirect(url_for('login'))
+        
+        # Actualizar última actividad
+        session['last_activity'] = datetime.now().isoformat()
+        session.modified = True
+        
         return f(*args, **kwargs)
     return decorated_function
 
@@ -169,12 +395,35 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
+            flash('Debes iniciar sesión', 'warning')
             return redirect(url_for('login'))
+        
         if session.get('rol') != 'admin':
+            log_security_event('unauthorized_admin_access', session.get('user_id'))
             flash('No tienes permisos', 'error')
             return redirect(url_for('dashboard'))
+        
+        # Verificar timeout
+        if 'last_activity' in session:
+            try:
+                last_activity = datetime.fromisoformat(session['last_activity'])
+                if datetime.now() - last_activity > timedelta(minutes=30):
+                    session.clear()
+                    flash('Tu sesión ha expirado', 'warning')
+                    return redirect(url_for('login'))
+            except:
+                session.clear()
+                return redirect(url_for('login'))
+        
+        session['last_activity'] = datetime.now().isoformat()
+        session.modified = True
+        
         return f(*args, **kwargs)
     return decorated_function
+
+# ============================================================================
+# RUTAS
+# ============================================================================
 
 @app.route('/')
 def index():
@@ -183,10 +432,27 @@ def index():
     return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")  # NUEVO: Rate limiting
 def login():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = sanitize_input(request.form.get('username', ''), 50)  # NUEVO: Sanitización
+        password = request.form.get('password', '')
+        
+        if not username or not password:
+            flash('Usuario y contraseña son requeridos', 'error')
+            return render_template('login.html')
+        
+        ip_address = get_client_ip()  # NUEVO: Obtener IP
+        
+        # NUEVO: Verificar rate limiting
+        can_attempt, message = check_login_attempts(username, ip_address)
+        if not can_attempt:
+            flash(message, 'error')
+            log_security_event('login_rate_limit_exceeded', None, f"Usuario: {username}")
+            return render_template('login.html')
         
         conn = get_db_connection()
         cur = conn.cursor()
@@ -196,20 +462,39 @@ def login():
         conn.close()
         
         if user and check_password_hash(user['password'], password):
+            # LOGIN EXITOSO
+            session.clear()  # NUEVO: Limpiar sesión anterior
             session['user_id'] = user['id']
             session['username'] = user['username']
             session['nombre'] = user['nombre']
             session['rol'] = user['rol']
+            session['last_activity'] = datetime.now().isoformat()  # NUEVO: Timestamp
+            session.permanent = True  # NUEVO: Sesión permanente con timeout
+            
+            # NUEVO: Registrar login exitoso
+            log_login_attempt(username, ip_address, True)
+            log_security_event('login_success', user['id'])
+            
             return redirect(url_for('dashboard'))
         else:
+            # LOGIN FALLIDO
+            log_login_attempt(username, ip_address, False)  # NUEVO: Registrar fallo
+            log_security_event('login_failed', None, f"Usuario: {username}")  # NUEVO
             flash('Usuario o contraseña incorrectos', 'error')
     
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
+    user_id = session.get('user_id')
+    log_security_event('logout', user_id)  # NUEVO: Registrar logout
     session.clear()
+    flash('Sesión cerrada exitosamente', 'info')  # NUEVO: Mensaje
     return redirect(url_for('login'))
+
+# ============================================================================
+# RESTO DE RUTAS (SIN CAMBIOS - solo tienen los decoradores mejorados)
+# ============================================================================
 
 @app.route('/dashboard')
 @login_required
