@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import io
@@ -10,11 +10,13 @@ import secrets
 
 app = Flask(__name__)
 
+# CONFIGURACIÓN DE SEGURIDAD
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 
+# Solo HTTPS en producción
 if os.environ.get('RENDER'):
     app.config['SESSION_COOKIE_SECURE'] = True
 
@@ -26,7 +28,7 @@ PRODUCTOS_CONFIG = {
         'precio': 15750,
         'costos': {'enmarcado': 1990, 'impresion': 887, 'drytac': 576, 'acrilico': 740, 'montaje': 300, 'papel': 340}
     },
-    'Pequeño': {
+    'Mediano': {
         'medidas': '75 x 122 cms',
         'precio': 13125,
         'costos': {'enmarcado': 1500, 'impresion': 595, 'drytac': 576, 'acrilico': 470, 'montaje': 300, 'papel': 320}
@@ -34,8 +36,9 @@ PRODUCTOS_CONFIG = {
 }
 
 COSTOS_VISA = {2: 0.05, 3: 0.0575, 6: 0.07, 10: 0.07, 12: 0.08}
-METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta débito', 'Pendiente']
+METODOS_PAGO = ['Efectivo', 'Transferencia', 'Tarjeta débito']
 
+# FUNCIONES DE SEGURIDAD
 def get_client_ip():
     if request.headers.get('X-Forwarded-For'):
         return request.headers.get('X-Forwarded-For').split(',')[0].strip()
@@ -96,7 +99,6 @@ def init_db():
         cantidad INTEGER DEFAULT 1, precio_unitario DECIMAL(10,2) NOT NULL, descuento DECIMAL(5,4) DEFAULT 0,
         anticipo DECIMAL(10,2) DEFAULT 0, metodo_pago_anticipo VARCHAR(50), cuotas_visa_anticipo INTEGER DEFAULT 0,
         fecha_sesion DATE, metodo_pago_saldo VARCHAR(50), cuotas_visa_saldo INTEGER DEFAULT 0,
-        saldo_pagado BOOLEAN DEFAULT FALSE,
         usuario_id INTEGER REFERENCES usuarios(id), fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     
     cur.execute('''CREATE TABLE IF NOT EXISTS login_attempts (
@@ -114,7 +116,6 @@ def init_db():
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS fecha_sesion DATE')
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS metodo_pago_saldo VARCHAR(50)')
         cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS cuotas_visa_saldo INTEGER DEFAULT 0')
-        cur.execute('ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS saldo_pagado BOOLEAN DEFAULT FALSE')
     except:
         pass
     
@@ -133,7 +134,7 @@ try:
 except Exception as e:
     print(f"Error inicializando DB: {e}")
 
-def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_anticipo=0, cuotas_visa_saldo=0, fecha_sesion=None, saldo_pagado=False):
+def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_anticipo=0, cuotas_visa_saldo=0):
     config = PRODUCTOS_CONFIG[producto]
     precio_unitario = config['precio']
     costos_detalle = {k: v * cantidad for k, v in config['costos'].items()}
@@ -148,23 +149,13 @@ def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_an
     utilidad = total_venta - costo_total
     porcentaje_utilidad = (utilidad / total_venta * 100) if total_venta > 0 else 0
     disponible_anticipo = anticipo - costo_produccion - costo_visa_anticipo
-    
-    es_saldo_pendiente = False
-    if saldo_restante > 0 and not saldo_pagado:
-        if fecha_sesion:
-            if isinstance(fecha_sesion, str):
-                fecha_sesion = datetime.strptime(fecha_sesion, '%Y-%m-%d').date()
-            es_saldo_pendiente = fecha_sesion > date.today()
-        else:
-            es_saldo_pendiente = True
-    
     return {
         'precio_unitario': precio_unitario, 'subtotal': subtotal, 'total_venta': total_venta,
         'anticipo': anticipo, 'saldo_restante': saldo_restante, 'costos_detalle': costos_detalle,
         'costo_produccion': costo_produccion, 'costo_visa_anticipo': costo_visa_anticipo,
         'costo_visa_saldo': costo_visa_saldo, 'costo_visa_total': costo_visa_total,
         'costo_total': costo_total, 'utilidad': utilidad, 'porcentaje_utilidad': porcentaje_utilidad,
-        'disponible_anticipo': disponible_anticipo, 'es_saldo_pendiente': es_saldo_pendiente
+        'disponible_anticipo': disponible_anticipo
     }
 
 def login_required(f):
@@ -210,17 +201,6 @@ def admin_required(f):
         session.modified = True
         return f(*args, **kwargs)
     return decorated_function
-
-@app.before_request
-def require_login():
-    if request.endpoint in ['login', 'static', 'index', None]:
-        return None
-    if request.path == '/login':
-        return None
-    if request.path.startswith('/static'):
-        return None
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
 
 @app.route('/')
 def index():
@@ -300,8 +280,8 @@ def dashboard():
     cur.close()
     conn.close()
     total_anticipos = total_saldos_pendientes = total_costos = total_utilidad = 0
-    pedidos_grande = pedidos_pequeno = anticipos_grande = anticipos_pequeno = 0
-    saldos_grande = saldos_pequeno = costos_grande = costos_pequeno = 0
+    pedidos_grande = pedidos_mediano = anticipos_grande = anticipos_mediano = 0
+    saldos_grande = saldos_mediano = costos_grande = costos_mediano = 0
     pedidos_procesados = []
     for pedido in pedidos:
         try:
@@ -309,31 +289,26 @@ def dashboard():
             totales = calcular_totales(pedido['producto'], pedido['cantidad'],
                                       float(pedido['descuento']) if pedido['descuento'] else 0,
                                       anticipo, pedido.get('cuotas_visa_anticipo') or 0,
-                                      pedido.get('cuotas_visa_saldo') or 0,
-                                      pedido.get('fecha_sesion'), pedido.get('saldo_pagado', False))
+                                      pedido.get('cuotas_visa_saldo') or 0)
             pedidos_procesados.append({'id': pedido['id'], 'fecha': pedido['fecha'], 'cliente': pedido['cliente'],
                                       'producto': pedido['producto'], 'cantidad': pedido['cantidad'],
                                       'fecha_sesion': pedido.get('fecha_sesion'),
                                       'metodo_pago_anticipo': pedido.get('metodo_pago_anticipo', ''),
-                                      'metodo_pago_saldo': pedido.get('metodo_pago_saldo', ''),
-                                      'saldo_pagado': pedido.get('saldo_pagado', False), **totales})
+                                      'metodo_pago_saldo': pedido.get('metodo_pago_saldo', ''), **totales})
             total_anticipos += anticipo
-            if totales['es_saldo_pendiente']:
-                total_saldos_pendientes += totales['saldo_restante']
+            total_saldos_pendientes += totales['saldo_restante']
             total_costos += totales['costo_total']
             total_utilidad += totales['utilidad']
             if pedido['producto'] == 'Grande':
                 pedidos_grande += pedido['cantidad']
                 anticipos_grande += anticipo
-                if totales['es_saldo_pendiente']:
-                    saldos_grande += totales['saldo_restante']
+                saldos_grande += totales['saldo_restante']
                 costos_grande += totales['costo_total']
             else:
-                pedidos_pequeno += pedido['cantidad']
-                anticipos_pequeno += anticipo
-                if totales['es_saldo_pendiente']:
-                    saldos_pequeno += totales['saldo_restante']
-                costos_pequeno += totales['costo_total']
+                pedidos_mediano += pedido['cantidad']
+                anticipos_mediano += anticipo
+                saldos_mediano += totales['saldo_restante']
+                costos_mediano += totales['costo_total']
         except:
             continue
     total_ventas_proyectadas = total_anticipos + total_saldos_pendientes
@@ -342,68 +317,13 @@ def dashboard():
         'total_anticipos': total_anticipos, 'total_saldos_pendientes': total_saldos_pendientes,
         'total_ventas_proyectadas': total_ventas_proyectadas, 'total_costos': total_costos,
         'total_utilidad': total_utilidad, 'margen_promedio': margen_promedio, 'total_pedidos': len(pedidos_procesados),
-        'pedidos_grande': pedidos_grande, 'pedidos_pequeno': pedidos_pequeno,
-        'anticipos_grande': anticipos_grande, 'anticipos_pequeno': anticipos_pequeno,
-        'saldos_grande': saldos_grande, 'saldos_pequeno': saldos_pequeno,
-        'costos_grande': costos_grande, 'costos_pequeno': costos_pequeno
+        'pedidos_grande': pedidos_grande, 'pedidos_mediano': pedidos_mediano,
+        'anticipos_grande': anticipos_grande, 'anticipos_mediano': anticipos_mediano,
+        'saldos_grande': saldos_grande, 'saldos_mediano': saldos_mediano,
+        'costos_grande': costos_grande, 'costos_mediano': costos_mediano
     }
     return render_template('dashboard.html', pedidos=pedidos_procesados, estadisticas=estadisticas,
                          fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
-
-@app.route('/saldos-pendientes')
-@login_required
-def saldos_pendientes():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''SELECT * FROM pedidos 
-                   WHERE ((fecha_sesion IS NULL OR fecha_sesion > CURRENT_DATE) AND saldo_pagado = FALSE)
-                   ORDER BY fecha_sesion ASC NULLS LAST, fecha DESC''')
-    pedidos = cur.fetchall()
-    cur.close()
-    conn.close()
-    
-    pedidos_pendientes = []
-    for pedido in pedidos:
-        try:
-            anticipo = float(pedido['anticipo']) if pedido.get('anticipo') else 0
-            totales = calcular_totales(pedido['producto'], pedido['cantidad'],
-                                      float(pedido['descuento']) if pedido['descuento'] else 0,
-                                      anticipo, pedido.get('cuotas_visa_anticipo') or 0,
-                                      pedido.get('cuotas_visa_saldo') or 0,
-                                      pedido.get('fecha_sesion'), False)
-            if totales['saldo_restante'] > 0:
-                pedidos_pendientes.append({
-                    'id': pedido['id'],
-                    'fecha': pedido['fecha'],
-                    'cliente': pedido['cliente'],
-                    'producto': pedido['producto'],
-                    'cantidad': pedido['cantidad'],
-                    'fecha_sesion': pedido.get('fecha_sesion'),
-                    'metodo_pago_saldo': pedido.get('metodo_pago_saldo', 'Pendiente'),
-                    'cuotas_visa_saldo': pedido.get('cuotas_visa_saldo', 0),
-                    **totales
-                })
-        except:
-            continue
-    
-    return render_template('saldos_pendientes.html', pedidos=pedidos_pendientes, metodos_pago=METODOS_PAGO, costos_visa=COSTOS_VISA)
-
-@app.route('/marcar-saldo-pagado/<int:pedido_id>', methods=['POST'])
-@login_required
-def marcar_saldo_pagado(pedido_id):
-    metodo_pago = request.form.get('metodo_pago_saldo', '')
-    cuotas_visa = int(request.form.get('cuotas_visa_saldo', 0))
-    
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('''UPDATE pedidos SET saldo_pagado = TRUE, metodo_pago_saldo = %s, cuotas_visa_saldo = %s 
-                   WHERE id = %s''', (metodo_pago, cuotas_visa, pedido_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-    
-    flash('Saldo marcado como pagado exitosamente', 'success')
-    return redirect(url_for('saldos_pendientes'))
 
 @app.route('/exportar-excel')
 @login_required
@@ -469,8 +389,7 @@ def exportar_excel():
             anticipo = float(pedido['anticipo']) if pedido.get('anticipo') else 0
             totales = calcular_totales(pedido['producto'], pedido['cantidad'],
                                       float(pedido['descuento']) if pedido['descuento'] else 0, anticipo,
-                                      pedido.get('cuotas_visa_anticipo') or 0, pedido.get('cuotas_visa_saldo') or 0,
-                                      pedido.get('fecha_sesion'), pedido.get('saldo_pagado', False))
+                                      pedido.get('cuotas_visa_anticipo') or 0, pedido.get('cuotas_visa_saldo') or 0)
             ws.cell(row=row, column=1, value=pedido['fecha'].strftime('%d/%m/%Y') if pedido['fecha'] else '').alignment = cell_alignment
             ws.cell(row=row, column=2, value=pedido['cliente'])
             ws.cell(row=row, column=3, value=pedido['producto']).alignment = cell_alignment
@@ -697,3 +616,13 @@ def cambiar_contrasena():
 
 if __name__ == '__main__':
     app.run(debug=True)
+```
+
+---
+
+## 📄 **ARCHIVO 2: requirements.txt**
+```
+Flask==3.0.0
+psycopg2-binary==2.9.9
+openpyxl==3.1.2
+Werkzeug==3.0.1
