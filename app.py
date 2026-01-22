@@ -20,7 +20,6 @@ if os.environ.get('RENDER'):
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# CAMBIO 1: Mediano → Pequeño
 PRODUCTOS_CONFIG = {
     'Grande': {
         'medidas': '94 x 152 cms',
@@ -134,7 +133,6 @@ try:
 except Exception as e:
     print(f"Error inicializando DB: {e}")
 
-# CAMBIO 2: Validación de fechas para saldos pendientes
 def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_anticipo=0, cuotas_visa_saldo=0, fecha_sesion=None, saldo_pagado=False):
     config = PRODUCTOS_CONFIG[producto]
     precio_unitario = config['precio']
@@ -151,7 +149,6 @@ def calcular_totales(producto, cantidad, descuento=0, anticipo=0, cuotas_visa_an
     porcentaje_utilidad = (utilidad / total_venta * 100) if total_venta > 0 else 0
     disponible_anticipo = anticipo - costo_produccion - costo_visa_anticipo
     
-    # NUEVA LÓGICA: Si la fecha de sesión ya pasó O está marcado como pagado, NO es saldo pendiente
     es_saldo_pendiente = False
     if saldo_restante > 0 and not saldo_pagado:
         if fecha_sesion:
@@ -213,9 +210,10 @@ def admin_required(f):
         session.modified = True
         return f(*args, **kwargs)
     return decorated_function
+
 @app.before_request
 def require_login():
-  if request.endpoint in ['login', 'static', 'index', None]:
+    if request.endpoint in ['login', 'static', 'index', None]:
         return None
     if request.path == '/login':
         return None
@@ -223,6 +221,7 @@ def require_login():
         return None
     if 'user_id' not in session:
         return redirect(url_for('login'))
+
 @app.route('/')
 def index():
     if 'user_id' in session:
@@ -351,7 +350,6 @@ def dashboard():
     return render_template('dashboard.html', pedidos=pedidos_procesados, estadisticas=estadisticas,
                          fecha_inicio=fecha_inicio, fecha_fin=fecha_fin)
 
-# NUEVA RUTA: Módulo de Saldos Pendientes
 @app.route('/saldos-pendientes')
 @login_required
 def saldos_pendientes():
@@ -390,7 +388,6 @@ def saldos_pendientes():
     
     return render_template('saldos_pendientes.html', pedidos=pedidos_pendientes, metodos_pago=METODOS_PAGO, costos_visa=COSTOS_VISA)
 
-# NUEVA RUTA: Marcar saldo como pagado
 @app.route('/marcar-saldo-pagado/<int:pedido_id>', methods=['POST'])
 @login_required
 def marcar_saldo_pagado(pedido_id):
