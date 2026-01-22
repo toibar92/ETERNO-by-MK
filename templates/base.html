@@ -1,110 +1,113 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Calculadora Eterno{% endblock %}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body { font-family: 'Montserrat', sans-serif; }
-        .dropdown-menu {
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-        }
-        .dropdown:hover .dropdown-menu,
-        .dropdown-menu:hover {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .dropdown-menu::before {
-            content: '';
-            position: absolute;
-            top: -10px;
-            left: 0;
-            right: 0;
-            height: 10px;
-        }
-    </style>
-</head>
-<body class="bg-gray-100 min-h-screen">
-    {% if session.user_id %}
-    <nav class="bg-black text-white shadow-lg">
-        <div class="container mx-auto px-4">
-            <div class="flex justify-between items-center py-3">
-                <a href="{{ url_for('dashboard') }}" class="flex items-center">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Eterno by MK" class="h-10">
-                </a>
-                <div class="flex items-center space-x-8">
-                    <a href="{{ url_for('dashboard') }}" class="hover:text-gray-300 transition text-sm tracking-wide">
-                        <i class="fas fa-home mr-1"></i>Dashboard
-                    </a>
-                    <a href="{{ url_for('nuevo_pedido') }}" class="hover:text-gray-300 transition text-sm tracking-wide">
-                        <i class="fas fa-plus mr-1"></i>Nuevo Pedido
-                    </a>
-                    {% if session.rol == 'admin' %}
-                    <a href="{{ url_for('usuarios') }}" class="hover:text-gray-300 transition text-sm tracking-wide">
-                        <i class="fas fa-users mr-1"></i>Usuarios
-                    </a>
-                    {% endif %}
-                    
-                    <div class="dropdown relative">
-                        <button class="hover:text-gray-300 flex items-center px-3 py-2 rounded transition cursor-pointer text-sm tracking-wide">
-                            <i class="fas fa-user-circle mr-2 text-lg"></i>
-                            <span>{{ session.nombre }}</span>
-                            <i class="fas fa-chevron-down ml-2 text-xs"></i>
-                        </button>
-                        <div class="dropdown-menu absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl py-2 z-50">
-                            <div class="px-4 py-3 border-b border-gray-100">
-                                <p class="text-xs text-gray-500">Sesión iniciada como</p>
-                                <p class="text-sm font-medium text-gray-900">{{ session.username }}</p>
-                            </div>
-                            <a href="{{ url_for('cambiar_contrasena') }}" 
-                               class="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 transition text-sm">
-                                <i class="fas fa-key mr-3 text-gray-400"></i>
-                                Cambiar Contraseña
-                            </a>
-                            <div class="border-t border-gray-100"></div>
-                            <a href="{{ url_for('logout') }}" 
-                               class="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 transition text-sm">
-                                <i class="fas fa-sign-out-alt mr-3"></i>
-                                Cerrar Sesión
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
-    {% endif %}
+{% extends "base.html" %}
 
-    <main class="container mx-auto px-4 py-8">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                <div class="mb-4 p-4 rounded-lg flex items-center {% if category == 'error' %}bg-red-100 text-red-700{% else %}bg-green-100 text-green-700{% endif %}">
-                    <i class="fas {% if category == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %} mr-2"></i>
-                    {{ message }}
-                </div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-        
-        {% block content %}{% endblock %}
-    </main>
+{% block title %}Login - ETERNO by MK{% endblock %}
 
-    <footer class="bg-black text-white py-6 mt-8">
-        <div class="container mx-auto px-4 text-center">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Eterno by MK" class="h-8 mx-auto mb-3 opacity-70">
-            <p class="text-xs text-gray-500 tracking-wider">&copy; 2026 Todos los derechos reservados</p>
-        </div>
-    </footer>
+{% block extra_css %}
+<style>
+    body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
     
-    {% block scripts %}{% endblock %}
-</body>
-</html>
+    .login-container {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+    }
+    
+    .login-card {
+        max-width: 450px;
+        width: 100%;
+        border-radius: 15px;
+        overflow: hidden;
+    }
+    
+    .login-header {
+        background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .login-header i {
+        font-size: 4rem;
+        color: white;
+        margin-bottom: 1rem;
+    }
+    
+    .login-header h2 {
+        color: white;
+        font-weight: 700;
+        margin: 0;
+    }
+    
+    .login-body {
+        padding: 2rem;
+        background: white;
+    }
+    
+    .form-control:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+    }
+    
+    .btn-login {
+        width: 100%;
+        padding: 0.75rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        transition: all 0.3s;
+    }
+    
+    .btn-login:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    @media (max-width: 576px) {
+        .login-header {
+            padding: 1.5rem;
+        }
+        
+        .login-header i {
+            font-size: 3rem;
+        }
+        
+        .login-body {
+            padding: 1.5rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container">
+    <div class="login-card card shadow-lg">
+        <div class="login-header">
+            <i class="bi bi-camera"></i>
+            <h2>ETERNO by MK</h2>
+            <p class="text-white-50 mb-0">Sistema de Gestión de Pedidos</p>
+        </div>
+        <div class="login-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label for="username" class="form-label">
+                        <i class="bi bi-person"></i> Usuario
+                    </label>
+                    <input type="text" class="form-control" id="username" name="username" required autofocus>
+                </div>
+                <div class="mb-4">
+                    <label for="password" class="form-label">
+                        <i class="bi bi-lock"></i> Contraseña
+                    </label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-login">
+                    <i class="bi bi-box-arrow-in-right"></i> Iniciar Sesión
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
