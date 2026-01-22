@@ -3,262 +3,312 @@
 {% block title %}Dashboard - ETERNO by MK{% endblock %}
 
 {% block content %}
-<!-- Filtros de Fecha -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <i class="bi bi-funnel"></i> Filtros
+<div class="space-y-6">
+    <!-- Filtro por fechas -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <form method="GET" class="flex flex-wrap items-end gap-4">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Fecha Inicio</label>
+                <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}"
+                       class="px-4 py-2 border border-gray-200 rounded focus:border-black focus:ring-0">
             </div>
-            <div class="card-body">
-                <form method="GET" class="row g-3 align-items-end">
-                    <div class="col-md-4">
-                        <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
-                        <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="fecha_fin" class="form-label">Fecha Fin</label>
-                        <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}">
-                    </div>
-                    <div class="col-md-4">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-search"></i> Filtrar
-                        </button>
-                        {% if fecha_inicio or fecha_fin %}
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary w-100 mt-2">
-                            <i class="bi bi-x-circle"></i> Limpiar
-                        </a>
-                        {% endif %}
-                    </div>
-                </form>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Fecha Fin</label>
+                <input type="date" name="fecha_fin" value="{{ fecha_fin }}"
+                       class="px-4 py-2 border border-gray-200 rounded focus:border-black focus:ring-0">
             </div>
-        </div>
+            <button type="submit" class="bg-black text-white px-6 py-2 rounded hover:bg-gray-800 transition text-sm uppercase tracking-wider">
+                Filtrar
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="bg-gray-200 text-gray-700 px-6 py-2 rounded hover:bg-gray-300 transition text-sm uppercase tracking-wider">
+                Limpiar
+            </a>
+            <a href="{{ url_for('exportar_excel', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}"
+               class="ml-auto bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 transition text-sm uppercase tracking-wider">
+                <i class="fas fa-file-excel mr-2"></i>Exportar Excel
+            </a>
+        </form>
     </div>
-</div>
 
-<!-- Estadísticas Generales -->
-<div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-start border-primary border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <div class="text-muted small">Total Anticipos</div>
-                        <div class="h4 mb-0 text-primary">Q{{ "%.2f"|format(estadisticas.total_anticipos) }}</div>
-                    </div>
-                    <div class="ms-3">
-                        <i class="bi bi-cash-coin text-primary" style="font-size: 2.5rem;"></i>
-                    </div>
+    <!-- Tarjetas principales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Anticipos Recibidos -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Anticipos Recibidos</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_anticipos) }}</p>
+                    <p class="text-xs text-green-600 mt-1">Dinero en caja</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-wallet text-green-600"></i>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-start border-warning border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <div class="text-muted small">Saldos Pendientes</div>
-                        <div class="h4 mb-0 text-warning">Q{{ "%.2f"|format(estadisticas.total_saldos_pendientes) }}</div>
-                    </div>
-                    <div class="ms-3">
-                        <i class="bi bi-clock-history text-warning" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-start border-success border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <div class="text-muted small">Utilidad Total</div>
-                        <div class="h4 mb-0 text-success">Q{{ "%.2f"|format(estadisticas.total_utilidad) }}</div>
-                    </div>
-                    <div class="ms-3">
-                        <i class="bi bi-graph-up-arrow text-success" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-xl-3 col-md-6 mb-3">
-        <div class="card border-start border-info border-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <div class="text-muted small">Margen Promedio</div>
-                        <div class="h4 mb-0 text-info">{{ "%.1f"|format(estadisticas.margen_promedio) }}%</div>
-                    </div>
-                    <div class="ms-3">
-                        <i class="bi bi-percent text-info" style="font-size: 2.5rem;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Estadísticas por Producto -->
-<div class="row mb-4">
-    <div class="col-lg-6 mb-3">
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                <i class="bi bi-image"></i> Grande (94 x 152 cms)
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 mb-2">
-                        <div class="text-muted small">Pedidos</div>
-                        <div class="h5 mb-0">{{ estadisticas.pedidos_grande }}</div>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <div class="text-muted small">Anticipos</div>
-                        <div class="h5 mb-0">Q{{ "%.0f"|format(estadisticas.anticipos_grande) }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Saldos</div>
-                        <div class="h5 mb-0">Q{{ "%.0f"|format(estadisticas.saldos_grande) }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Costos</div>
-                        <div class="h5 mb-0">Q{{ "%.0f"|format(estadisticas.costos_grande) }}</div>
-                    </div>
+        <!-- Saldos Pendientes -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Saldos Pendientes</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_saldos_pendientes) }}</p>
+                    <p class="text-xs text-orange-600 mt-1">Por cobrar en sesiones</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-clock text-orange-600"></i>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <div class="col-lg-6 mb-3">
-        <div class="card">
-            <div class="card-header bg-info text-white">
-                <i class="bi bi-image"></i> Pequeño (75 x 122 cms)
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6 mb-2">
-                        <div class="text-muted small">Pedidos</div>
-                        <div class="h5 mb-0">{{ estadisticas.pedidos_pequeno }}</div>
-                    </div>
-                    <div class="col-6 mb-2">
-                        <div class="text-muted small">Anticipos</div>
-                        <div class="h5 mb-0">Q{{ "%.0f"|format(estadisticas.anticipos_pequeno) }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Saldos</div>
-                        <div class="h5 mb-0">Q{{ "%.0f"|format(estadisticas.saldos_pequeno) }}</div>
-                    </div>
-                    <div class="col-6">
-                        <div class="text-muted small">Costos</div>
-                        <div class="h5 mb-0">Q{{ "%.0f"|format(estadisticas.costos_pequeno) }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Tabla de Pedidos -->
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
-                <h5 class="mb-0">
-                    <i class="bi bi-list-ul"></i> Pedidos ({{ estadisticas.total_pedidos }})
-                </h5>
-                <div class="mt-2 mt-md-0">
-                    <a href="{{ url_for('nuevo_pedido') }}" class="btn btn-success btn-sm me-2">
-                        <i class="bi bi-plus-circle"></i> Nuevo Pedido
-                    </a>
-                    <a href="{{ url_for('exportar_excel', fecha_inicio=fecha_inicio, fecha_fin=fecha_fin) }}" class="btn btn-primary btn-sm">
-                        <i class="bi bi-file-earmark-excel"></i> Exportar Excel
-                    </a>
+        <!-- Ventas Proyectadas -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Ventas Proyectadas</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_ventas_proyectadas) }}</p>
+                    <p class="text-xs text-blue-600 mt-1">Total esperado</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-chart-line text-blue-600"></i>
                 </div>
             </div>
-            <div class="card-body p-0">
-                {% if pedidos %}
-                <div class="table-responsive">
-                    <table class="table table-hover table-striped align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Cliente</th>
-                                <th>Producto</th>
-                                <th class="text-center">Cant.</th>
-                                <th class="text-end">Anticipo</th>
-                                <th class="text-end">Saldo</th>
-                                <th class="text-end">Utilidad</th>
-                                <th class="text-center">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for pedido in pedidos %}
-                            <tr>
-                                <td>
-                                    <small>{{ pedido.fecha.strftime('%d/%m/%Y') }}</small>
-                                </td>
-                                <td><strong>{{ pedido.cliente }}</strong></td>
-                                <td>
-                                    <span class="badge bg-{% if pedido.producto == 'Grande' %}primary{% else %}info{% endif %}">
-                                        {{ pedido.producto }}
-                                    </span>
-                                </td>
-                                <td class="text-center">{{ pedido.cantidad }}</td>
-                                <td class="text-end">
-                                    <span class="text-success">Q{{ "%.2f"|format(pedido.anticipo) }}</span>
-                                </td>
-                                <td class="text-end">
-                                    {% if pedido.es_saldo_pendiente %}
-                                        <span class="text-warning">Q{{ "%.2f"|format(pedido.saldo_restante) }}</span>
-                                    {% elif pedido.saldo_restante > 0 %}
-                                        <span class="text-muted"><s>Q{{ "%.2f"|format(pedido.saldo_restante) }}</s></span>
-                                        <br><small class="text-success"><i class="bi bi-check-circle"></i> Pagado</small>
-                                    {% else %}
-                                        <span class="text-muted">-</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-end">
-                                    <span class="{% if pedido.utilidad > 0 %}text-success{% else %}text-danger{% endif %}">
-                                        Q{{ "%.2f"|format(pedido.utilidad) }}
-                                    </span>
-                                    <br>
-                                    <small class="text-muted">({{ "%.1f"|format(pedido.porcentaje_utilidad) }}%)</small>
-                                </td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" 
-                                           class="btn btn-primary" title="Editar">
-                                            <i class="bi bi-pencil"></i>
-                                        </a>
-                                        <a href="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" 
-                                           class="btn btn-danger" 
-                                           onclick="return confirm('¿Eliminar este pedido?')"
-                                           title="Eliminar">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        </div>
+
+        <!-- Costos Totales -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Costos Totales</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_costos) }}</p>
+                    <p class="text-xs text-red-600 mt-1">Producción + VISA</p>
                 </div>
-                {% else %}
-                <div class="text-center py-5">
-                    <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
-                    <h4 class="mt-3">No hay pedidos</h4>
-                    <p class="text-muted">Comienza creando tu primer pedido</p>
-                    <a href="{{ url_for('nuevo_pedido') }}" class="btn btn-primary">
-                        <i class="bi bi-plus-circle"></i> Crear Primer Pedido
-                    </a>
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-receipt text-red-600"></i>
                 </div>
-                {% endif %}
+            </div>
+        </div>
+
+        <!-- Utilidad Proyectada -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Utilidad Proyectada</p>
+                    <p class="text-3xl font-light text-black mt-2">Q {{ "{:,.2f}".format(estadisticas.total_utilidad) }}</p>
+                    <p class="text-xs text-green-600 mt-1">Ventas - Costos</p>
+                </div>
+                <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <i class="fas fa-piggy-bank text-green-600"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Margen -->
+        <div class="bg-black rounded-lg shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider">Margen Promedio</p>
+                    <p class="text-3xl font-light text-white mt-2">{{ "{:.1f}".format(estadisticas.margen_promedio) }}%</p>
+                    <p class="text-xs text-gray-400 mt-1">{{ estadisticas.total_pedidos }} pedidos</p>
+                </div>
+                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                    <i class="fas fa-percentage text-white"></i>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- Gráfica Anticipos vs Saldos vs Costos -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 class="text-sm font-medium text-gray-400 uppercase tracking-wider mb-6">Anticipos vs Saldos Pendientes vs Costos</h3>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="h-72">
+                <canvas id="chartComparativo"></canvas>
+            </div>
+            <div class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-medium text-gray-800">Cuadros Grande</h4>
+                        <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{{ estadisticas.pedidos_grande }} uds</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <p class="text-xs text-gray-500">Anticipos</p>
+                            <p class="text-base font-semibold text-green-600">Q {{ "{:,.0f}".format(estadisticas.anticipos_grande) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Saldos</p>
+                            <p class="text-base font-semibold text-orange-500">Q {{ "{:,.0f}".format(estadisticas.saldos_grande) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Costos</p>
+                            <p class="text-base font-semibold text-red-600">Q {{ "{:,.0f}".format(estadisticas.costos_grande) }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-medium text-gray-800">Cuadros Mediano</h4>
+                        <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs">{{ estadisticas.pedidos_mediano }} uds</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <p class="text-xs text-gray-500">Anticipos</p>
+                            <p class="text-base font-semibold text-green-600">Q {{ "{:,.0f}".format(estadisticas.anticipos_mediano) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Saldos</p>
+                            <p class="text-base font-semibold text-orange-500">Q {{ "{:,.0f}".format(estadisticas.saldos_mediano) }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Costos</p>
+                            <p class="text-base font-semibold text-red-600">Q {{ "{:,.0f}".format(estadisticas.costos_mediano) }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de pedidos -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-sm font-medium text-gray-400 uppercase tracking-wider">
+                Listado de Pedidos ({{ estadisticas.total_pedidos }})
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Producto</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cant.</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Anticipo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sesión</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Costo</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Utilidad</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for pedido in pedidos %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-sm">{{ pedido.fecha.strftime('%d/%m/%Y') if pedido.fecha else '' }}</td>
+                        <td class="px-4 py-3 text-sm font-medium">{{ pedido.cliente }}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 rounded text-xs {% if pedido.producto == 'Grande' %}bg-gray-800 text-white{% else %}bg-gray-200 text-gray-800{% endif %}">
+                                {{ pedido.producto }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-sm">{{ pedido.cantidad }}</td>
+                        <td class="px-4 py-3 text-sm font-medium">Q {{ "{:,.2f}".format(pedido.total_venta) }}</td>
+                        <td class="px-4 py-3 text-sm text-green-600">Q {{ "{:,.2f}".format(pedido.anticipo) }}</td>
+                        <td class="px-4 py-3 text-sm {% if pedido.saldo_restante > 0 %}text-orange-600{% else %}text-green-600{% endif %}">
+                            Q {{ "{:,.2f}".format(pedido.saldo_restante) }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500">
+                            {{ pedido.fecha_sesion.strftime('%d/%m/%Y') if pedido.fecha_sesion else '-' }}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-red-600">Q {{ "{:,.2f}".format(pedido.costo_total) }}</td>
+                        <td class="px-4 py-3 text-sm font-medium text-green-600">Q {{ "{:,.2f}".format(pedido.utilidad) }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <a href="{{ url_for('editar_pedido', pedido_id=pedido.id) }}" class="text-gray-600 hover:text-black mr-3">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <a href="{{ url_for('eliminar_pedido', pedido_id=pedido.id) }}" 
+                               class="text-gray-400 hover:text-red-600"
+                               onclick="return confirm('¿Eliminar este pedido?')">
+                                <i class="fas fa-trash"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="px-4 py-12 text-center text-gray-400">
+                            <i class="fas fa-inbox text-4xl mb-3"></i>
+                            <p>No hay pedidos registrados</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const anticiposGrande = {{ estadisticas.anticipos_grande }};
+    const saldosGrande = {{ estadisticas.saldos_grande }};
+    const costosGrande = {{ estadisticas.costos_grande }};
+    const anticiposMediano = {{ estadisticas.anticipos_mediano }};
+    const saldosMediano = {{ estadisticas.saldos_mediano }};
+    const costosMediano = {{ estadisticas.costos_mediano }};
+    
+    const ctx = document.getElementById('chartComparativo').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Grande', 'Mediano'],
+            datasets: [
+                {
+                    label: 'Anticipos',
+                    data: [anticiposGrande, anticiposMediano],
+                    backgroundColor: 'rgba(34, 197, 94, 0.8)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Saldos Pendientes',
+                    data: [saldosGrande, saldosMediano],
+                    backgroundColor: 'rgba(249, 115, 22, 0.8)',
+                    borderColor: 'rgba(249, 115, 22, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Costos',
+                    data: [costosGrande, costosMediano],
+                    backgroundColor: 'rgba(239, 68, 68, 0.8)',
+                    borderColor: 'rgba(239, 68, 68, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { padding: 15, font: { size: 11 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': Q' + context.raw.toLocaleString('es-GT', {minimumFractionDigits: 2});
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'Q' + value.toLocaleString('es-GT');
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
 {% endblock %}
