@@ -215,8 +215,13 @@ def admin_required(f):
     return decorated_function
 @app.before_request
 def require_login():
-    allowed_routes = ['login', 'static']
-    if request.endpoint not in allowed_routes and 'user_id' not in session:
+  if request.endpoint in ['login', 'static', 'index', None]:
+        return None
+    if request.path == '/login':
+        return None
+    if request.path.startswith('/static'):
+        return None
+    if 'user_id' not in session:
         return redirect(url_for('login'))
 @app.route('/')
 def index():
